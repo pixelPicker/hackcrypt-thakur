@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
 
-import { Navbar } from "@/components/Navbar";
+
 import { Providers } from "@/app/providers";
 import clsx from "clsx";
 import { dmsans } from "@/components/ui/fonts";
+
 
 export const metadata: Metadata = {
   title: "Deepfake Detection and Media Authenticity Analyzer",

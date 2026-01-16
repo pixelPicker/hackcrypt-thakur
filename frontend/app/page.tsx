@@ -1,9 +1,14 @@
 "use client";
 
 import { Navbar } from "@/components/Navbar";
+import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
+import { useEffect } from "react";
 
 export default function Home() {
+  useEffect(()=>{
+   
+  },[])
   return (
     <div className="relative min-h-screen bg-[url('/bg.jpg')] bg-cover bg-center bg-no-repeat">
 <Navbar />

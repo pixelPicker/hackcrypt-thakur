@@ -1,16 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldCheck, Upload, Activity, Menu, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { ShieldCheck, Upload, Activity, Menu, X, User } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
+import { useState } from "react";
+import { useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 
 export function Navbar({ className }: { className?: string }) {
   const [menuState, setMenuState] = useState(false);
-
+  const [profileOpen, setProfileOpen] = useState(false);
+  const { data: session } = useSession();
+  const initial = (session?.user?.name || session?.user?.email || "?")
+    .charAt(0)
+    .toUpperCase();
   return (
     <motion.header
       initial={{ y: -100 }}
@@ -37,23 +43,53 @@ export function Navbar({ className }: { className?: string }) {
           </div>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-1">
-          {[
-            { href: "/upload", label: "Upload", icon: Upload },
-            { href: "/results", label: "Results", icon: Activity },
-          ].map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="relative px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground transition-all hover:text-white hover:bg-white/5 group overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-linear-gradient-to-tr from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="flex items-center gap-2 relative z-10">
-                <link.icon className="h-4 w-4" />
-                {link.label}
-              </div>
-            </Link>
-          ))}
+        <nav className="hidden lg:flex items-center gap-1 text-sm">
+          <Link
+            href="/upload"
+            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground hover:scale-105 active:scale-95"
+          >
+            <Upload className="md:h-4 md:w-4 h-3 w-3" />
+            Upload
+          </Link>
+          <Link
+            href="/results"
+            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground hover:scale-105 active:scale-95"
+          >
+            <Activity className="h-4 w-4" />
+            Results
+          </Link>
+          {session?.user && (
+            <div className="relative ml-2 pl-3 border-l border-border/60 flex items-center">
+              <button
+                type="button"
+                onClick={() => setProfileOpen((v) => !v)}
+                className="flex items-center justify-center h-8 w-8 cursor-pointer rounded-full bg-white/10 border border-white/30 text-white"
+                aria-label="Profile menu"
+              >
+                <span className="text-xs font-semibold">{initial}</span>
+              </button>
+              {profileOpen && (
+                <div className="absolute right-0 top-10 z-20 min-w-[140px] rounded-md border border-white/20 bg-black/90 p-1 shadow-xl">
+                  <button
+                    onClick={() => {
+                      setProfileOpen(false);
+                      signOut({ callbackUrl: "/" });
+                    }}
+                    className="w-full cursor-pointer rounded-sm px-3 py-2 text-left text-sm text-white hover:bg-white/10"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {!session?.user && (
+            <div className="ml-2 pl-3 border-l border-border/60">
+              <Link href="/login">
+                <Button className="h-8 px-3 bg-white text-black hover:bg-white/90">Login</Button>
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* Mobile menu toggle */}
@@ -100,30 +136,51 @@ export function Navbar({ className }: { className?: string }) {
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="absolute top-full left-0 w-full overflow-hidden bg-background/95 backdrop-blur-3xl border-b border-white/10 shadow-2xl lg:hidden bg-gray-800"
             >
-              <nav className="flex flex-col p-4 gap-2">
-                {[
-                  { href: "/upload", label: "Upload", icon: Upload },
-                  { href: "/results", label: "Results", icon: Activity },
-                ].map((link, i) => (
-                  <motion.div
-                    key={link.href}
-                    initial={{ x: -20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: i * 0.1 }}
+              <div className="flex flex-col items-start gap-1 p-2">
+                <Link
+                  href="/upload"
+                  className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground"
+                  onClick={() => setMenuState(false)}
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload
+                </Link>
+
+                <Link
+                  href="/results"
+                  className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground"
+                  onClick={() => setMenuState(false)}
+                >
+                  <Activity className="h-4 w-4" />
+                  Results
+                </Link>
+
+                {!session?.user && (
+                  <Link
+                    href="/login"
+                    className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground"
+                    onClick={() => setMenuState(false)}
                   >
-                    <Link
-                      href={link.href}
-                      onClick={() => setMenuState(false)}
-                      className="flex items-center gap-3 p-3 rounded-xl text-muted-foreground hover:text-white hover:bg-white/5 transition-all active:scale-98 bg-gray-900"
-                    >
-                      <div className="p-2 rounded-lg bg-white/5">
-                        <link.icon className="h-5 w-5" />
-                      </div>
-                      <span className="font-medium text-lg">{link.label}</span>
-                    </Link>
-                  </motion.div>
-                ))}
-              </nav>
+                    <User className="h-4 w-4" />
+                    Login
+                  </Link>
+                )}
+
+                {session?.user && (
+                  <button
+                    onClick={() => {
+                      setMenuState(false);
+                      signOut({ callbackUrl: "/" });
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-white hover:bg-white/10 rounded-md border-t border-white/10 mt-1"
+                  >
+                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-white/10 border border-white/30">
+                      <span className="text-xs font-semibold">{initial}</span>
+                    </div>
+                    <div className="text-xs">Logout</div>
+                  </button>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

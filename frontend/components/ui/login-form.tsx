@@ -1,6 +1,7 @@
 "use client";
+
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,98 +22,81 @@ export function LoginForm() {
 
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // ✅ SAFE parsing
+    const email = String(formData.get("email") || "")
+      .trim()
+      .toLowerCase();
+
+    const password = String(formData.get("password") || "").trim();
+
+    // ✅ Validate before request
+    if (!email || !password) {
+      alert("Email and password required");
+      setLoading(false);
+      return;
+    }
+
+    const res = await signIn("credentials", {
       email,
       password,
+      redirect: false,
     });
 
     setLoading(false);
 
-    if (error) {
-      alert(error.message);
-    } else {
-      alert("Logged in successfully!");
-      // Redirect user to dashboard or home page
-      window.location.href = "/dashboard";
+    if (res?.error) {
+      console.error(res.error);
+      alert(res.error || "Invalid email or password");
+      return;
     }
+
+    // redirect to homepage on success
+    window.location.href = "/";
   };
 
   return (
-    <div className="relative bg-[url('/bg.jpg')] bg-cover bg-center bg-no-repeat flex min-h-screen items-center justify-center overflow-hidden px-4">
-
-      {/* Background Blur Overlay */}
+    <div className="relative bg-[url('/bg.jpg')] bg-cover bg-center bg-no-repeat flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 px-4">
       <div className="absolute inset-0 bg-black/20 backdrop-blur-md"></div>
 
-      {/* Glass Card */}
-      <Card
-        className="relative z-10 w-full max-w-md rounded-2xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl"
-      >
-        <CardHeader className="space-y-2 text-center text-white">
-          <CardTitle className="text-xl sm:text-2xl">
-            Login to your account
-          </CardTitle>
-          <CardDescription className="text-sm sm:text-base text-white/80">
-            Enter your credentials to continue
+      <Card className="relative z-10 w-full max-w-md rounded-2xl border border-white/70 bg-white/10 shadow-2xl backdrop-blur-xl">
+        <CardHeader className="text-center text-white">
+          <CardTitle>Login</CardTitle>
+          <CardDescription className="text-white/80">
+            Enter your credentials
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* Email */}
-            <div className="space-y-2">
+            <div>
               <Label className="text-white">Email</Label>
-              <Input
-                name="email"
-                type="email"
-                placeholder="john@cena.com"
-                className="h-11 border-white/20 bg-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-white/20"
-                required
-              />
+              <Input name="email" type="email" required />
             </div>
 
-            {/* Password */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-white">Password</Label>
-              </div>
-
-              <Input
-                name="password"
-                type="password"
-                placeholder="********"
-                className="h-11 border-white/20 bg-white/20 text-white placeholder:text-white/60 focus:border-white/40 focus:ring-white/20"
-                required
-              />
+            <div>
+              <Label className="text-white">Password</Label>
+              <Input name="password" type="password" required />
             </div>
 
-            {/* Button */}
-            <div className="space-y-3 pt-2">
-              <Button
-                type="submit"
-                className="h-11 w-full cursor-pointer bg-white text-black hover:bg-white/90 font-semibold"
-                disabled={loading}
+            <Button disabled={loading} className="h-11 w-full bg-white text-black">
+              {loading ? "Logging in..." : "Login"}
+            </Button>
+
+            <p className="text-center text-xs sm:text-sm text-white/80">
+              Don&apos;t have an account?{" "}
+              <a
+                href="/register"
+                className="underline underline-offset-4 hover:text-white"
               >
-                {loading ? "Logging in..." : "Login"}
-              </Button>
-
-              <p className="text-center text-xs sm:text-sm text-white/80">
-                Don&apos;t have an account?{" "}
-                <a
-                  href="/signup"
-                  className="underline underline-offset-4 hover:text-white"
-                >
-                  Sign up
-                </a>
-              </p>
-            </div>
+                Create one
+              </a>
+            </p>
 
           </form>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
