@@ -56,9 +56,8 @@ class ExplainabilityEngine:
         for i in range(num_points):
             timestamp = (i / num_points) * duration
             timeline.append({
-                "timestamp": float(timestamp),
-                "score": float(np.random.uniform(0.3, 0.7)),
-                "anomaly_type": "temporal_inconsistency"
+                "t": float(timestamp),
+                "score": float(np.random.uniform(0.3, 0.7))
             })
         
         return timeline

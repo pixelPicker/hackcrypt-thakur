@@ -12,6 +12,7 @@ import { ConfidenceScore } from "@/components/ConfidenceScore";
 import { HeatmapOverlay } from "@/components/HeatmapOverlay";
 import { TimelineAnomalies } from "@/components/TimelineAnomalies";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   Card,
   CardContent,
@@ -41,18 +42,16 @@ function ResultsContent() {
   const type = search.get("type") ?? "";
 
   const last = React.useMemo(() => readLastResult(), []);
-
   const shouldFetch = Boolean(id) && id !== "local";
 
-  const query = useQuery({
+  const { data, isFetching, refetch } = useQuery({
     queryKey: ["result", id],
     queryFn: () => getResult(id),
     enabled: shouldFetch,
     initialData: !shouldFetch ? last ?? undefined : undefined,
   });
 
-  const result = (shouldFetch ? query.data : last) ?? query.data;
-
+  const result = data;
   const hasResult = Boolean(result);
 
   const isImage = type.startsWith("image/");
@@ -88,10 +87,12 @@ function ResultsContent() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => query.refetch()}
-              disabled={query.isFetching}
+              onClick={() => refetch()}
+              disabled={isFetching}
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw
+                className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           ) : null}
@@ -99,7 +100,7 @@ function ResultsContent() {
       </div>
 
       <AnimatePresence initial={false}>
-        {query.isFetching ? (
+        {isFetching ? (
           <motion.div
             key="loading"
             initial={{ opacity: 0, y: 8 }}
@@ -108,8 +109,8 @@ function ResultsContent() {
             className="mb-6 rounded-xl border border-border/60 bg-card/40 p-4"
           >
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <Database className="h-4 w-4" />
-              Fetching result from http://localhost:8000…
+              <Database className="h-4 w-4 animate-pulse" />
+              Fetching result from backend…
             </div>
           </motion.div>
         ) : null}
@@ -141,8 +142,8 @@ function ResultsContent() {
             <CardContent className="space-y-6">
               <ConfidenceScore
                 label={result?.label ?? "Authentic"}
-                confidence={result?.confidence ?? 0}
-                riskLevel={result?.riskLevel ?? "Medium"}
+                confidence={result?.confidence_score ?? 0}
+                riskLevel={result?.risk_level ?? "Medium"}
               />
 
               {media ? (
@@ -171,6 +172,66 @@ function ResultsContent() {
                   )}
                 </div>
               ) : null}
+
+              {/* Modality Scores Breakdown */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Detection Breakdown</div>
+                <div className="rounded-xl border border-border/60 bg-card/40 p-4 space-y-3">
+                  {result?.modality_scores?.vision !== undefined && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Visual Analysis</span>
+                        <span className="font-medium tabular-nums">
+                          {(result.modality_scores.vision * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <Progress value={result.modality_scores.vision * 100} />
+                    </div>
+                  )}
+
+                  {result?.modality_scores?.audio !== undefined && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Audio Analysis</span>
+                        <span className="font-medium tabular-nums">
+                          {(result.modality_scores.audio * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <Progress value={result.modality_scores.audio * 100} />
+                    </div>
+                  )}
+
+                  {result?.modality_scores?.temporal !== undefined && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Temporal Analysis</span>
+                        <span className="font-medium tabular-nums">
+                          {(result.modality_scores.temporal * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <Progress value={result.modality_scores.temporal * 100} />
+                    </div>
+                  )}
+
+                  {result?.modality_scores?.metadata !== undefined && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Metadata Analysis</span>
+                        <span className="font-medium tabular-nums">
+                          {(result.modality_scores.metadata * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <Progress value={result.modality_scores.metadata * 100} />
+                    </div>
+                  )}
+
+                  <div className="border-t pt-3 mt-3">
+                    <div className="text-xs text-muted-foreground">
+                      Combined score from all detection modalities
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -184,13 +245,29 @@ function ResultsContent() {
             <CardContent>
               <Tabs defaultValue="timeline" className="w-full">
                 <TabsList>
-                  <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                  <TabsTrigger value="heatmap">Heatmap</TabsTrigger>
+                  <TabsTrigger
+                    value="timeline"
+                    disabled={!result?.timeline?.length}
+                  >
+                    Timeline
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="heatmap"
+                    disabled={!result?.heatmap?.length}
+                  >
+                    Heatmap
+                  </TabsTrigger>
                   <TabsTrigger value="raw">Raw</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="timeline">
-                  <TimelineAnomalies timeline={result?.timeline} />
+                  {result?.timeline && result.timeline.length > 0 ? (
+                    <TimelineAnomalies timeline={result.timeline} />
+                  ) : (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      No temporal anomalies detected.
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="heatmap">

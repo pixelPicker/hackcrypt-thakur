@@ -39,7 +39,7 @@ export default function UploadPage() {
       } catch {}
 
       const params = new URLSearchParams();
-      params.set("id", result.id ?? "local");
+      params.set("id", result.job_id); // Updated to match new API
       if (mediaUrl) params.set("media", mediaUrl);
       if (file?.name) params.set("name", file.name);
       if (file?.type) params.set("type", file.type);
@@ -200,35 +200,6 @@ export default function UploadPage() {
             </AnimatePresence>
           </CardContent>
         </Card>
-
-        {/* <Card>
-          <CardHeader>
-            <CardTitle>Pipeline</CardTitle>
-            <CardDescription>What happens after you upload</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-              <div className="text-foreground/90">1. Media normalization</div>
-              <div className="mt-1">
-                File metadata is captured and prepared for forensic inference.
-              </div>
-            </div>
-            <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-              <div className="text-foreground/90">2. Model inference</div>
-              <div className="mt-1">
-                The backend produces label, confidence, and optional
-                localization/timeline signals.
-              </div>
-            </div>
-            <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-              <div className="text-foreground/90">3. Results dashboard</div>
-              <div className="mt-1">
-                Forensic widgets render risk assessment with animated
-                transitions.
-              </div>
-            </div>
-          </CardContent>
-        </Card> */}
       </div>
     </div>
   );

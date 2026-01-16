@@ -19,15 +19,31 @@ export type TimelinePoint = {
   score: number;
 };
 
+export type ModalityScores = {
+  vision?: number;
+  audio?: number;
+  temporal?: number;
+  metadata?: number;
+};
+
 export type AnalysisResult = {
-  id: string;
+  job_id: string;
   label: AnalysisLabel;
-  confidence: number;
-  riskLevel: RiskLevel;
-  mediaKind?: MediaKind;
-  details?: Record<string, unknown>;
+  confidence_score: number;
+  risk_level: RiskLevel;
+  modality_scores?: ModalityScores;
+  media_type?: string;
+  processing_time_ms?: number;
+  explainability?: Record<string, unknown>;
   heatmap?: HeatmapBox[];
   timeline?: TimelinePoint[];
+
+  // Legacy fields for backward compatibility
+  id?: string;
+  confidence?: number;
+  riskLevel?: RiskLevel;
+  mediaKind?: MediaKind;
+  details?: Record<string, unknown>;
 };
 
 function clamp01(n: number) {
@@ -89,19 +105,21 @@ export function normalizeAnalysisResult(raw: any): AnalysisResult {
   const id = String(raw?.id ?? raw?.job_id ?? raw?.jobId ?? raw?.result_id ?? "");
 
   const labelRaw = raw?.label ?? raw?.prediction?.label ?? raw?.class ?? raw?.result ?? raw?.verdict;
-  const confidenceRaw = raw?.confidence ?? raw?.prediction?.confidence ?? raw?.score ?? raw?.probability;
+  const confidenceRaw = raw?.confidence_score ?? raw?.confidence ?? raw?.prediction?.confidence ?? raw?.score ?? raw?.probability;
   const riskRaw = raw?.riskLevel ?? raw?.risk_level ?? raw?.risk;
 
   const timelineRaw = raw?.timeline ?? raw?.anomalies_timeline ?? raw?.anomalies ?? raw?.series;
   const heatmapRaw = raw?.heatmap ?? raw?.localization ?? raw?.regions;
 
   return {
-    id: id || "local",
+    job_id: id || "local",
     label: normalizeLabel(labelRaw),
-    confidence: normalizeConfidence(confidenceRaw),
-    riskLevel: normalizeRiskLevel(riskRaw),
-    mediaKind: raw?.mediaKind ?? raw?.media_kind,
-    details: raw?.details ?? raw?.meta,
+    confidence_score: normalizeConfidence(confidenceRaw), // Returns 0-100 (percentage)
+    risk_level: normalizeRiskLevel(riskRaw),
+    modality_scores: raw?.modality_scores,
+    media_type: raw?.mediaKind ?? raw?.media_kind ?? raw?.media_type,
+    processing_time_ms: raw?.processing_time_ms,
+    explainability: raw?.explainability ?? raw?.details ?? raw?.meta,
     timeline: normalizeTimeline(timelineRaw),
     heatmap: normalizeHeatmap(heatmapRaw),
   };
