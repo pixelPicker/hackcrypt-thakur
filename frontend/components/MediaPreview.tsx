@@ -50,7 +50,7 @@ export function MediaPreview({ file, url, className }: MediaPreviewProps) {
 
 function VideoPreview({ url, className }: { url: string; className?: string }) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
-  const playerRef = React.useRef<videojs.Player | null>(null);
+  const playerRef = React.useRef<ReturnType<typeof videojs> | null>(null);
 
   React.useEffect(() => {
     if (!videoRef.current) return;
@@ -125,7 +125,9 @@ function AudioPreview({ url, className }: { url: string; className?: string }) {
           >
             {playing ? "Pause" : "Play"}
           </Button>
-          <div className="text-xs text-muted-foreground">Waveform analysis view</div>
+          <div className="text-xs text-muted-foreground">
+            Waveform analysis view
+          </div>
         </div>
       </div>
     </div>

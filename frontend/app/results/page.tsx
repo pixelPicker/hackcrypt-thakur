@@ -31,7 +31,7 @@ function readLastResult(): AnalysisResult | null {
   }
 }
 
-export default function ResultsPage() {
+function ResultsContent() {
   const router = useRouter();
   const search = useSearchParams();
 
@@ -140,16 +140,16 @@ export default function ResultsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <ConfidenceScore
-                label={result.label}
-                confidence={result.confidence}
-                riskLevel={result.riskLevel}
+                label={result?.label ?? "Authentic"}
+                confidence={result?.confidence ?? 0}
+                riskLevel={result?.riskLevel ?? "Medium"}
               />
 
               {media ? (
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Media snapshot</div>
                   {isImage ? (
-                    <HeatmapOverlay boxes={result.heatmap}>
+                    <HeatmapOverlay boxes={result?.heatmap}>
                       <img
                         src={media}
                         alt={name || "uploaded"}
@@ -190,12 +190,12 @@ export default function ResultsPage() {
                 </TabsList>
 
                 <TabsContent value="timeline">
-                  <TimelineAnomalies timeline={result.timeline} />
+                  <TimelineAnomalies timeline={result?.timeline} />
                 </TabsContent>
 
                 <TabsContent value="heatmap">
                   <div className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-                    {(result.heatmap?.length ?? 0) > 0
+                    {(result?.heatmap?.length ?? 0) > 0
                       ? "Heatmap overlays are displayed on image snapshots when available."
                       : "No heatmap regions provided by backend."}
                   </div>
@@ -212,5 +212,17 @@ export default function ResultsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ResultsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-6xl px-5 py-8">Loading...</div>
+      }
+    >
+      <ResultsContent />
+    </React.Suspense>
   );
 }
