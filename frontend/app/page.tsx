@@ -55,7 +55,7 @@ export default function Home() {
                   relative inline-flex h-11 items-center justify-center
                   rounded-full px-8 font-medium text-white
                   overflow-hidden transition-all duration-300
-                  bg-gradient-to-br from-blue-900/60 via-indigo-800/60 to-purple-900/60
+                  bg-linear-to-tr from-blue-900/60 via-indigo-800/60 to-purple-900/60
                   hover:from-blue-900/80 hover:via-indigo-800/80 hover:to-purple-900/80
                   shadow-[0_0_12px_rgba(99,102,241,0.5)]
                   hover:shadow-[0_0_20px_rgba(99,102,241,0.7)]
