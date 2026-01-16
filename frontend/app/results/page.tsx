@@ -58,14 +58,10 @@ function ResultsContent() {
   const isAudio = type.startsWith("audio/");
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-5 py-8">
+    <div className="mx-auto w-full max-w-6xl flex flex-col px-5 pt-24">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <FileSearch className="h-4 w-4" />
-            Analysis Result
-          </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight">
             Forensic dashboard
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
