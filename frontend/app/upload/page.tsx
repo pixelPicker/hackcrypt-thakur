@@ -58,7 +58,7 @@ export default function UploadPage() {
   const canAnalyze = Boolean(file) && !mutation.isPending;
 
   return (
-    <div className="flex flex-col mx-auto w-full max-w-6xl p-5">
+    <div className="flex flex-col mx-auto w-full max-w-6xl px-5 pt-20 relative">
       {file && mediaUrl ? (
         <div
           className={`fixed inset-0 z-999 p-4 rounded-xl flex items-center justify-center bg-black/60 ${
