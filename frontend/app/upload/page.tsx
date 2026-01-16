@@ -35,6 +35,8 @@ export default function UploadPage() {
   const [file, setFile] = React.useState<File | null>(null);
   const [mediaUrl, setMediaUrl] = React.useState<string | null>(null);
   const [showPreview, setShowPreview] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const [analysisProgress, setAnalysisProgress] = React.useState(0);
 
   React.useEffect(() => {
     return () => {
@@ -43,7 +45,12 @@ export default function UploadPage() {
   }, [mediaUrl]);
 
   const mutation = useMutation({
-    mutationFn: async (f: File) => analyzeMedia(f),
+    mutationFn: async (f: File) => {
+      setUploadProgress(0);
+      return analyzeMedia(f, (progress) => {
+        setUploadProgress(progress);
+      });
+    },
     onSuccess: (result) => {
       try {
         sessionStorage.setItem("dfa:lastResult", JSON.stringify(result));
@@ -57,6 +64,21 @@ export default function UploadPage() {
       router.push(`/results?${params.toString()}`);
     },
   });
+
+  React.useEffect(() => {
+    if (uploadProgress === 100 && mutation.isPending) {
+      setAnalysisProgress(0);
+      const interval = setInterval(() => {
+        setAnalysisProgress((prev) => {
+          if (prev >= 98) return prev;
+          // Fast start, slower finish
+          const inc = prev < 30 ? 10 : prev < 60 ? 5 : 1;
+          return Math.min(98, prev + inc);
+        });
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, [uploadProgress, mutation.isPending]);
 
   const handleFileSelected = React.useCallback((f: File) => {
     setFile(f);
@@ -80,7 +102,7 @@ export default function UploadPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] p-4 flex items-center justify-center bg-black/80 backdrop-blur-md"
+              className="fixed inset-0 z-100 p-4 flex items-center justify-center bg-black/80 backdrop-blur-md"
               onClick={() => setShowPreview(false)}
             >
               <motion.div
@@ -110,7 +132,7 @@ export default function UploadPage() {
           >
             <Card className="border-0 bg-transparent shadow-none">
               <CardHeader className="text-center pb-10">
-                <CardTitle className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 mb-4">
+                <CardTitle className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-linear-to-b from-white to-white/60 mb-4">
                   Upload Media
                 </CardTitle>
                 <CardDescription className="text-lg text-muted-foreground/80 max-w-lg mx-auto">
@@ -190,7 +212,7 @@ export default function UploadPage() {
                       <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </span>
                     {canAnalyze && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="absolute inset-0 bg-linear-to-r from-blue-600 via-indigo-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     )}
                   </Button>
 
@@ -200,15 +222,60 @@ export default function UploadPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="w-full max-w-xs space-y-2"
+                        className="w-full max-w-sm space-y-3"
                       >
-                        <div className="flex justify-between text-xs text-blue-200/80 px-1">
-                          <span>Processing...</span>
-                          <span>70%</span>
+                        <div className="flex justify-between text-sm font-medium text-blue-200/90 px-1">
+                          <span className="flex items-center gap-2">
+                            {uploadProgress < 100 ? (
+                              <>
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                                </span>
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500"></span>
+                                </span>
+                                Analyzing Media...
+                              </>
+                            )}
+                          </span>
+                          <span>
+                            {uploadProgress < 100
+                              ? uploadProgress
+                              : Math.round(analysisProgress)}
+                            %
+                          </span>
                         </div>
-                        <Progress value={70} className="h-2 bg-white/10" />
-                        <p className="text-center text-xs text-muted-foreground pt-2">
-                          Uploading to fusion engine...
+
+                        <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/5 border border-white/10 p-px">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${
+                                uploadProgress < 100
+                                  ? uploadProgress
+                                  : analysisProgress
+                              }%`,
+                            }}
+                            transition={{ ease: "easeOut", duration: 0.2 }}
+                            className={cn(
+                              "h-full rounded-full bg-linear-to-r shadow-[0_0_10px_rgba(59,130,246,0.5)]",
+                              uploadProgress < 100
+                                ? "from-blue-600 via-indigo-500 to-blue-600"
+                                : "from-purple-600 via-fuchsia-500 to-purple-600 animate-pulse"
+                            )}
+                          />
+                        </div>
+
+                        <p className="text-center text-xs text-muted-foreground/80 animate-pulse">
+                          {uploadProgress < 100
+                            ? "Sending to secure cloud..."
+                            : "Running multi-modal deepfake detection..."}
                         </p>
                       </motion.div>
                     )}
@@ -229,9 +296,8 @@ export default function UploadPage() {
                               Analysis Failed
                             </div>
                             <div className="mt-1 text-xs text-red-200/60 leading-relaxed">
-                              Could not connect to the backend server. Please
-                              ensure the analysis engine is running on port
-                              8000.
+                              {mutation.error?.message ||
+                                "Could not connect to the backend server. Please ensure the analysis engine is running on port 8000."}
                             </div>
                           </div>
                         </div>
