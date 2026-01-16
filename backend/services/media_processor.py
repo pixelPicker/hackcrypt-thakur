@@ -67,31 +67,36 @@ class MediaProcessor:
         with open(temp_path, 'wb') as f:
             f.write(video_data)
         
+        # Release video_data from memory
+        del video_data
+        
         cap = cv2.VideoCapture(temp_path)
         
-        frames = []
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = cap.get(cv2.CAP_PROP_FPS)
-        
-        sample_rate = max(1, frame_count // 30)
-        
-        for i in range(0, frame_count, sample_rate):
-            cap.set(cv2.CAP_PROP_POS_FRAMES, i)
-            ret, frame = cap.read()
-            if ret:
-                frames.append(frame)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         
         cap.release()
         
-        metadata = extract_metadata(video_data, "video")
+        # Load metadata from file
+        with open(temp_path, 'rb') as f:
+            video_bytes = f.read()
+            metadata = extract_metadata(video_bytes, "video")
+            del video_bytes
+        
         metadata_score = self._analyze_metadata(metadata)
         
+        # Return video path instead of loading frames
+        # Detectors will read frames on-demand to save memory
         return {
             "type": "video",
-            "frames": frames,
+            "video_path": temp_path,
+            "local_path": temp_path,  # For compatibility
             "fps": fps,
             "frame_count": frame_count,
-            "video_path": temp_path,
+            "width": width,
+            "height": height,
             "metadata": metadata,
             "metadata_score": metadata_score,
             "metadata_flags": self._get_metadata_flags(metadata),

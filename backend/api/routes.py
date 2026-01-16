@@ -59,6 +59,11 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
         
         # --- 1. VISION DETECTION ---
         if media_data["type"] in ["image", "video"]:
+            from utils.memory_manager import MemoryManager
+            
+            if media_data["type"] == "video":
+                MemoryManager.log_memory_usage("Starting video analysis: ")
+            
             vision_detector = VisionDetector()
             vision_result = vision_detector.detect(media_data)
             modality_scores["vision"] = vision_result["score"]
@@ -121,7 +126,9 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
         # Path resolution for public URL
         public_media_url = media_url
         if media_url.startswith("file://"):
-            filename = media_url.split("/")[-1]
+            # Extract filename from file path (handles both ./temp_storage/file.mp4 and absolute paths)
+            file_path = media_url.replace("file://", "")
+            filename = os.path.basename(file_path)
             public_media_url = f"http://localhost:8000/uploads/{filename}"
 
         return {

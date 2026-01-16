@@ -6,7 +6,13 @@ class FusionEngine:
         self.weights = {
             "image": {"vision": 0.8, "metadata": 0.2},
             "audio": {"audio": 0.9, "metadata": 0.1},
-            "video": {"vision": 0.4, "audio": 0.3, "temporal": 0.2, "metadata": 0.1}
+            "video": {
+                "vision": 0.35,     # Visual frame analysis
+                "audio": 0.25,      # Audio deepfake detection
+                "temporal": 0.15,   # Frame-to-frame consistency
+                "lipsync": 0.15,    # Audio-visual synchronization
+                "metadata": 0.10    # Metadata forensics
+            }
         }
     
     def fuse(self, modality_scores: dict, media_type: str):

@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 from transformers import ViTForImageClassification, ViTImageProcessor
@@ -16,11 +17,24 @@ class VisionDetector:
     
     def _load_model(self):
         try:
+            # Set up local model cache directory
+            current_script_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.normpath(os.path.join(current_script_dir, ".."))
+            model_cache_dir = os.path.join(project_root, "models", "pretrained")
+            os.makedirs(model_cache_dir, exist_ok=True)
+            
             model_name = "prithivMLmods/Deep-Fake-Detector-v2-Model"
             logger.info(f"Loading pretrained model: {model_name}")
+            logger.info(f"Cache directory: {model_cache_dir}")
             
-            self.model = ViTForImageClassification.from_pretrained(model_name)
-            self.processor = ViTImageProcessor.from_pretrained(model_name)
+            self.model = ViTForImageClassification.from_pretrained(
+                model_name,
+                cache_dir=model_cache_dir
+            )
+            self.processor = ViTImageProcessor.from_pretrained(
+                model_name,
+                cache_dir=model_cache_dir
+            )
             
             self.model = self.model.to(self.device)
             self.model.eval()
@@ -37,7 +51,7 @@ class VisionDetector:
         if media_data["type"] == "image":
             return self._detect_image(media_data["data"])
         elif media_data["type"] == "video":
-            return self._detect_video(media_data["frames"])
+            return self._detect_video(media_data)
         else:
             raise ValueError(f"Unsupported media type for vision detection: {media_data['type']}")
     
@@ -97,32 +111,80 @@ class VisionDetector:
                 "regions": []
             }
     
-    def _detect_video(self, frames: list):
-        if not frames:
+    def _detect_video(self, media_data: dict):
+        """Detect deepfakes in video by processing frames on-demand"""
+        from utils.memory_manager import MemoryManager
+        
+        video_path = media_data.get("video_path") or media_data.get("local_path")
+        if not video_path:
+            logger.error("No video path provided in media_data")
             return {"score": 0.5, "label": "unknown", "heatmap": None, "regions": []}
         
-        scores = []
-        labels = []
-        heatmaps = []
+        try:
+            cap = cv2.VideoCapture(video_path)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            if frame_count == 0:
+                cap.release()
+                return {"score": 0.5, "label": "unknown", "heatmap": None, "regions": []}
+            
+            scores = []
+            labels = []
+            heatmaps = []
+            
+            # Sample max 10 frames to reduce memory usage
+            sample_rate = max(1, frame_count // 10)
+            max_frames = 10
+            
+            logger.info(f"Processing video with {frame_count} frames (sampling every {sample_rate} frames)")
+            MemoryManager.log_memory_usage("Before video processing: ")
+            
+            for i in range(0, frame_count, sample_rate):
+                if len(scores) >= max_frames:
+                    break
+                
+                cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+                ret, frame = cap.read()
+                
+                if not ret:
+                    continue
+                
+                # Downscale frame to max 720p to save memory
+                height, width = frame.shape[:2]
+                max_height = 720
+                if height > max_height:
+                    scale = max_height / height
+                    new_width = int(width * scale)
+                    frame = cv2.resize(frame, (new_width, max_height), interpolation=cv2.INTER_AREA)
+                
+                # Process frame
+                with MemoryManager.memory_efficient_context():
+                    result = self._detect_image(frame)
+                    scores.append(result["score"])
+                    labels.append(result.get("label", "unknown"))
+                    if result["heatmap"] and len(heatmaps) == 0:
+                        heatmaps.append(result["heatmap"])
+                
+                # Explicitly delete frame to free memory
+                del frame
+            
+            cap.release()
+            MemoryManager.clear_memory()
+            MemoryManager.log_memory_usage("After video processing: ")
+            
+            avg_score = np.mean(scores) if scores else 0.5
+            most_common_label = max(set(labels), key=labels.count) if labels else "unknown"
+            
+            return {
+                "score": float(avg_score),
+                "label": most_common_label,
+                "heatmap": heatmaps[0] if heatmaps else None,
+                "regions": []
+            }
         
-        sample_rate = max(1, len(frames) // 10)
-        
-        for i, frame in enumerate(frames[::sample_rate]):
-            result = self._detect_image(frame)
-            scores.append(result["score"])
-            labels.append(result.get("label", "unknown"))
-            if result["heatmap"]:
-                heatmaps.append(result["heatmap"])
-        
-        avg_score = np.mean(scores) if scores else 0.5
-        most_common_label = max(set(labels), key=labels.count) if labels else "unknown"
-        
-        return {
-            "score": float(avg_score),
-            "label": most_common_label,
-            "heatmap": heatmaps[0] if heatmaps else None,
-            "regions": []
-        }
+        except Exception as e:
+            logger.error(f"Video detection error: {str(e)}")
+            return {"score": 0.5, "label": "error", "heatmap": None, "regions": []}
     
     def _generate_heatmap(self, image: np.ndarray, pil_image: Image.Image):
         try:

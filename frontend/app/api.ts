@@ -23,6 +23,7 @@ export type ModalityScores = {
   vision?: number;
   audio?: number;
   temporal?: number;
+  lipsync?: number;
   metadata?: number;
 };
 

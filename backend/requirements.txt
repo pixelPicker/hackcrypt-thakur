@@ -11,18 +11,19 @@ pydantic-settings
 
 boto3
 
-torch
-torchvision
+torch>=2.1.0
+torchvision>=0.16.0
+torchaudio>=2.1.0
 timm
 opencv-python
 mediapipe
 librosa
-torchaudio
 transformers
 grad-cam
 captum
 
 ffmpeg-python
+moviepy
 hachoir
 numpy
 scikit-learn
@@ -30,4 +31,6 @@ loguru
 Pillow
 huggingface-hub
 python-multipart
-numpy==1.26.4
+numpy
+scipy
+opencv-python
