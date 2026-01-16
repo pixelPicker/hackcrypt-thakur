@@ -27,7 +27,7 @@ export function TimelineAnomalies({ timeline }: TimelineAnomaliesProps) {
   }, [timeline]);
 
   return (
-    <div className="min-h-56 w-full rounded-xl bg-neutral-700/40 p-6">
+    <div className="h-64 w-full rounded-xl bg-neutral-700/40 p-6 pb-12">
       <div className="mb-3 text-xl font-medium">
         Temporal anomaly confidence
       </div>
