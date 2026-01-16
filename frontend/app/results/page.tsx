@@ -4,13 +4,23 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Database, FileSearch, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  Database,
+  FileSearch,
+  RefreshCw,
+  Eye,
+  Volume2,
+  Clock,
+  Mic,
+} from "lucide-react";
 
 import type { AnalysisResult } from "@/app/api";
 import { getResult } from "@/app/api";
 import { ConfidenceScore } from "@/components/ConfidenceScore";
 import { HeatmapOverlay } from "@/components/HeatmapOverlay";
 import { TimelineAnomalies } from "@/components/TimelineAnomalies";
+import { ModalityCard } from "@/components/ModalityCard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -216,6 +226,18 @@ function ResultsContent() {
                     </div>
                   )}
 
+                  {result?.modality_scores?.lipsync !== undefined && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Lip-sync Analysis</span>
+                        <span className="font-medium tabular-nums">
+                          {(result.modality_scores.lipsync * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <Progress value={result.modality_scores.lipsync * 100} />
+                    </div>
+                  )}
+
                   {result?.modality_scores?.metadata !== undefined && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
@@ -267,6 +289,12 @@ function ResultsContent() {
                     Heatmap
                   </TabsTrigger>
                   <TabsTrigger
+                    value="detailed"
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12"
+                  >
+                    Detailed Analysis
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="raw"
                     className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12 ml-auto"
                   >
@@ -312,6 +340,73 @@ function ResultsContent() {
                         : "No heatmap regions detected."}
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="detailed">
+                  <div className="space-y-4">
+                    {result?.modality_scores?.vision !== undefined && (
+                      <ModalityCard
+                        title="Visual Frame Analysis"
+                        score={result.modality_scores.vision}
+                        icon={<Eye size={20} />}
+                        description="Deep learning-based frame manipulation detection"
+                        details={
+                          result?.explainability?.vision_details as
+                            | Record<string, any>
+                            | undefined
+                        }
+                      />
+                    )}
+
+                    {result?.modality_scores?.audio !== undefined && (
+                      <ModalityCard
+                        title="Audio Deepfake Detection"
+                        score={result.modality_scores.audio}
+                        icon={<Volume2 size={20} />}
+                        description="Spectral analysis and AI-based voice synthesis detection"
+                        details={
+                          result?.explainability?.audio_metrics as
+                            | Record<string, any>
+                            | undefined
+                        }
+                      />
+                    )}
+
+                    {result?.modality_scores?.temporal !== undefined && (
+                      <ModalityCard
+                        title="Temporal Consistency"
+                        score={result.modality_scores.temporal}
+                        icon={<Clock size={20} />}
+                        description="Frame-to-frame transition and motion pattern analysis"
+                        details={
+                          result?.explainability?.temporal_details as
+                            | Record<string, any>
+                            | undefined
+                        }
+                      />
+                    )}
+
+                    {result?.modality_scores?.lipsync !== undefined && (
+                      <ModalityCard
+                        title="Lip-sync Verification"
+                        score={result.modality_scores.lipsync}
+                        icon={<Mic size={20} />}
+                        description="Audio-visual synchronization correlation analysis"
+                        details={
+                          result?.explainability?.lipsync_details as
+                            | Record<string, any>
+                            | undefined
+                        }
+                      />
+                    )}
+
+                    {!result?.modality_scores ||
+                      (Object.keys(result.modality_scores).length === 0 && (
+                        <div className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
+                          No detailed modality scores available.
+                        </div>
+                      ))}
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="raw">

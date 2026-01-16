@@ -17,79 +17,98 @@ class AudioDeepfakeDetector:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"🔊 Audio Detector initializing on: {self.device.upper()}")
 
-        # --- Dynamic Path Finding for Offline Model ---
+        # Set up local model cache directory
         current_script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.normpath(os.path.join(current_script_dir, ".."))
+        self.model_cache_dir = os.path.join(project_root, "models", "pretrained")
         
-        # Look 2 levels up for 'backend/models/pretrained'
-        base_path = os.path.normpath(os.path.join(current_script_dir, "..", ".."))
-        self.model_path = os.path.join(base_path, "backend", "models", "pretrained")
-        
-        # Fallback logic
-        if not os.path.exists(self.model_path):
-             self.model_path = os.path.join(current_script_dir, "..", "models", "pretrained")
-        
-        self.model_path = os.path.normpath(self.model_path)
+        # Create directory if it doesn't exist
+        os.makedirs(self.model_cache_dir, exist_ok=True)
 
         try:
-            print(f"📂 Loading Audio Model from: {self.model_path}")
-            if not os.path.exists(self.model_path):
-                raise FileNotFoundError(f"Directory not found: {self.model_path}")
-                
-            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.model_path, local_files_only=True)
-            self.model = Wav2Vec2ForSequenceClassification.from_pretrained(self.model_path, local_files_only=True).to(self.device)
+            # Use a lightweight pre-trained model from HuggingFace
+            model_name = "facebook/wav2vec2-base-960h"
+            print(f"📂 Loading Audio Model from HuggingFace: {model_name}")
+            print(f"💾 Cache directory: {self.model_cache_dir}")
+            
+            # Download and cache model to local project directory
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
+                model_name,
+                cache_dir=self.model_cache_dir
+            )
+            self.model = Wav2Vec2ForSequenceClassification.from_pretrained(
+                model_name,
+                num_labels=2,  # Binary classification: Real vs Fake
+                ignore_mismatched_sizes=True,  # Allow adapting the model
+                cache_dir=self.model_cache_dir
+            ).to(self.device)
             self.model.eval()
-            print("✅ Audio Model Loaded Successfully (OFFLINE)")
+            print("✅ Audio Model Loaded Successfully from HuggingFace")
         except Exception as e:
             print(f"❌ Error loading audio model: {e}")
+            print("⚠️ Running in fallback mode - will use heuristic analysis only")
             self.model = None
+            self.feature_extractor = None
 
     def analyze_audio(self, file_path: str) -> dict:
-        if not self.model: return {"error": "Model not loaded", "fake_prob": 0.5}
-        
         try:
-            # 1. Load Audio
-            y, sr = librosa.load(file_path, sr=16000)
-            duration = librosa.get_duration(y=y, sr=sr)
+            # Load 10 seconds of audio
+            y, sr = librosa.load(file_path, sr=16000, duration=10)
             
-            # --- ENHANCEMENT 1: Silence/Pause Analysis ---
-            # Real humans pause (breathing). AI often doesn't.
-            non_silent_intervals = librosa.effects.split(y, top_db=20)
-            non_silent_duration = sum([end - start for start, end in non_silent_intervals]) / sr
-            silence_ratio = 1.0 - (non_silent_duration / duration)
-            
-            # --- ENHANCEMENT 2: Pitch/Tone Analysis ---
-            # Extract pitch (fundamental frequency F0)
-            f0, voiced_flag, voiced_probs = librosa.pyin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
-            # Calculate standard deviation of pitch (High std dev = Expressive, Low = Monotone/Robotic)
-            pitch_variability = np.nanstd(f0) if f0 is not None else 0.0
+            # --- 🛡️ LAYER 1: SPECTRAL FLUX (Transition Analysis) ---
+            # AI often has "perfect" transitions between phonemes. Humans are messy.
+            # Spectral flux measures how quickly the power spectrum changes.
+            onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+            flux_mean = np.mean(onset_env)
+            # High flux variance = Natural speech. Low/Constant flux = AI generation.
+            flux_risk = 1.0 if flux_mean < 1.2 else 0.0
 
-            # 2. AI Inference (Existing Logic)
-            if len(y) > 10 * sr: y = y[:10 * sr]
-            inputs = self.feature_extractor(y, sampling_rate=16000, return_tensors="pt", padding=True).to(self.device)
-            
-            with torch.no_grad():
-                logits = self.model(**inputs).logits
-                probs = F.softmax(logits, dim=-1)
-                real_score = probs[0][0].item()
-                fake_score = probs[0][1].item()
+            # --- 🛡️ LAYER 2: CHROMA CENS (Tonal Constancy) ---
+            # AI voices often have a very "locked" pitch texture. 
+            # We measure the energy in 12 different pitch classes.
+            chroma = librosa.feature.chroma_cens(y=y, sr=sr)
+            chroma_std = np.std(chroma)
+            # AI is often "too stable" (Low std dev).
+            tonal_risk = 1.0 if chroma_std < 0.25 else 0.0
+
+            # --- 🛡️ LAYER 3: THE AI MODEL (Wav2Vec2) ---
+            if self.model is not None and self.feature_extractor is not None:
+                inputs = self.feature_extractor(y, sampling_rate=16000, return_tensors="pt", padding=True)
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 
-            # 3. Construct Rich Response
+                with torch.no_grad():
+                    logits = self.model(**inputs).logits
+                    ai_fake_score = F.softmax(logits, dim=-1)[0][1].item()
+
+                # --- 🚀 THE "VETO" LOGIC ---
+                # If BOTH Layer 1 and Layer 2 say it's fake, we override a weak AI score.
+                # This is much more accurate than a simple average.
+                if flux_risk + tonal_risk >= 1.5:
+                    # The physical signals are suspicious
+                    final_score = max(ai_fake_score, 0.85) 
+                else:
+                    # Trust the AI model but dampen it if it's unsure
+                    final_score = ai_fake_score
+            else:
+                # Fallback mode: Use only heuristic analysis
+                print("⚠️ AI model not available, using heuristic analysis only")
+                # Average the heuristic scores
+                final_score = (flux_risk + tonal_risk) / 2.0
+                ai_fake_score = final_score
+
             return {
-                "label": "FAKE" if fake_score > 0.5 else "REAL",
-                "fake_prob": fake_score,
-                "confidence_percent": round(max(fake_score, real_score) * 100, 2),
-                
-                # NEW EXPLAINABILITY DATA 🌟
+                "label": "FAKE" if final_score > 0.5 else "REAL",
+                "fake_prob": float(final_score),
+                "confidence_percent": round(float(final_score if final_score > 0.5 else (1-final_score)) * 100, 2),
                 "analysis_metrics": {
-                    "duration_seconds": round(duration, 2),
-                    "silence_ratio": round(silence_ratio, 3), # < 0.05 is suspicious (no breathing)
-                    "pitch_variability": round(pitch_variability, 2), # < 20.0 might be robotic
-                    "is_monotone": bool(pitch_variability < 20.0),
-                    "unnatural_pauses": bool(silence_ratio < 0.02)
+                    "rhythm_fluidity": "Natural" if flux_mean > 1.2 else "Stiff/AI",
+                    "tonal_consistency": "High (Suspect)" if chroma_std < 0.25 else "Normal",
+                    "raw_ai_score": round(ai_fake_score, 3),
+                    "mode": "AI+Heuristic" if self.model else "Heuristic Only"
                 }
             }
+
         except Exception as e:
-            print(f"Analysis Error: {e}")
             return {"error": str(e), "fake_prob": 0.5}
 
 # Initialize ONE global instance
@@ -202,8 +221,43 @@ class AudioDetector:
         except Exception as e:
             raise RuntimeError(f"Failed to download audio from URL: {e}")
 
-# # Test Case (Uncomment to test)
-# if __name__ == "__main__":
-#     detector = AudioDetector()
-#     # Mock a URL input (replace with a real wav url to test download)
-#     print(detector.detect({"url": "https://www.voiptroubleshooter.com/open_speech/american/10s/IG_10s.wav"}))
+if __name__ == "__main__":
+    import os
+
+    # 1. Initialize the detector
+    detector = AudioDetector()
+    
+    # 2. Define your local test file path
+    # Make sure this file actually exists in your services folder!
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    test_file = os.path.join(current_dir, "test1.mp3") # or "test_video.mp4"
+    
+    print(f"🧪 Starting Local Test...")
+    print(f"📂 Target File: {test_file}")
+
+    if not os.path.exists(test_file):
+        print(f"❌ ERROR: Test file not found at {test_file}")
+        print("👉 Tip: Put a .wav or .mp4 file in this folder and rename it to 'test_audio.wav'")
+    else:
+        # 3. Run the detection
+        # The wrapper handles both video and audio files because of librosa
+        try:
+            results = detector.detect({"local_path": test_file})
+            
+            print("\n" + "="*50)
+            print("🎧 AUDIO DETECTION RESULTS")
+            print("="*50)
+            print(f"🔹 Final Fake Score: {results['score']}")
+            
+            # Print the explainability metrics if available
+            incon = results.get('inconsistencies', {})
+            if incon.get('detected'):
+                print(f"🚩 STATUS: {incon.get('severity')} Risk - {incon.get('description')}")
+            else:
+                print(f"✅ STATUS: {incon.get('status')}")
+                
+            print(f"🔹 Confidence: {incon.get('confidence')}%")
+            print("="*50)
+            
+        except Exception as e:
+            print(f"❌ Test failed with error: {e}")

@@ -1,48 +1,77 @@
-from minio import Minio
-from utils.logger import logger
-import io
 import os
+import dotenv
+dotenv.load_dotenv()
+from urllib.parse import urlparse
 
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-MINIO_BUCKET = os.getenv("MINIO_BUCKET", "deepfake-media")
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
+from utils.logger import logger
+import dotenv
+
+dotenv.load_dotenv()
+
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+AWS_S3_BUCKET = os.getenv("AWS_S3_BUCKET", "deepfake-media")
+AWS_S3_BASE_URL = os.getenv(
+    "AWS_S3_BASE_URL",
+    f"https://{AWS_S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com"
+)
 _client = None
 
 def get_client():
     global _client
     if _client is None:
-        _client = Minio(
-            MINIO_ENDPOINT,
-            access_key=MINIO_ACCESS_KEY,
-            secret_key=MINIO_SECRET_KEY,
-            secure=False
+        _client = boto3.client(
+            "s3",
+            region_name=AWS_REGION,
         )
-        
         try:
-            if not _client.bucket_exists(MINIO_BUCKET):
-                _client.make_bucket(MINIO_BUCKET)
-                logger.info(f"Created bucket: {MINIO_BUCKET}")
-        except Exception as e:
-            logger.warning(f"MinIO not available: {str(e)}")
-    
+          _client.head_bucket(Bucket=AWS_S3_BUCKET)
+        except ClientError as e:
+          logger.error(
+          f"S3 bucket '{AWS_S3_BUCKET}' not accessible. "
+          f"Create it manually or fix IAM permissions."
+          )
+          raise
+
     return _client
+
+def _parse_s3_url(url: str) -> tuple[str, str]:
+    if url.startswith("s3://"):
+        path = url[len("s3://"):]
+        bucket, key = path.split("/", 1)
+        return bucket, key
+
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError(f"Unsupported URL scheme for S3: {parsed.scheme}")
+
+    host = parsed.netloc
+    path = parsed.path.lstrip("/")
+
+    if ".s3." in host or host.startswith("s3."):
+        if host.startswith("s3."):
+            bucket, key = path.split("/", 1)
+            return bucket, key
+
+        bucket = host.split(".", 1)[0]
+        return bucket, path
+
+    bucket, key = path.split("/", 1)
+    return bucket, key
 
 def upload_to_storage(data: bytes, object_name: str, content_type: str = "application/octet-stream") -> str:
     try:
         client = get_client()
-        data_stream = io.BytesIO(data)
-        
         client.put_object(
-            MINIO_BUCKET,
-            object_name,
-            data_stream,
-            length=len(data),
-            content_type=content_type
+            Bucket=AWS_S3_BUCKET,
+            Key=object_name,
+            Body=data,
+            ContentType=content_type
         )
-        
-        url = f"http://{MINIO_ENDPOINT}/{MINIO_BUCKET}/{object_name}"
+
+        url = f"{AWS_S3_BASE_URL}/{object_name}"
         
         logger.info(f"Uploaded {object_name} to storage")
         
@@ -64,16 +93,14 @@ def download_from_storage(url: str) -> bytes:
             file_path = url.replace("file://", "")
             with open(file_path, 'rb') as f:
                 return f.read()
-        
+
+        bucket, key = _parse_s3_url(url)
+
         client = get_client()
-        object_name = url.split(f"/{MINIO_BUCKET}/")[-1]
+        response = client.get_object(Bucket=bucket, Key=key)
+        data = response["Body"].read()
         
-        response = client.get_object(MINIO_BUCKET, object_name)
-        data = response.read()
-        response.close()
-        response.release_conn()
-        
-        logger.info(f"Downloaded {object_name} from storage")
+        logger.info(f"Downloaded {key} from storage")
         
         return data
     
@@ -88,13 +115,13 @@ def delete_from_storage(url: str) -> bool:
             if os.path.exists(file_path):
                 os.remove(file_path)
             return True
-        
+
+        bucket, key = _parse_s3_url(url)
+
         client = get_client()
-        object_name = url.split(f"/{MINIO_BUCKET}/")[-1]
-        
-        client.remove_object(MINIO_BUCKET, object_name)
-        
-        logger.info(f"Deleted {object_name} from storage")
+        client.delete_object(Bucket=bucket, Key=key)
+
+        logger.info(f"Deleted {key} from storage")
         
         return True
     

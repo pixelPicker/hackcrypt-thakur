@@ -10,6 +10,7 @@ class ModalityScore(BaseModel):
     vision: Optional[float] = None
     audio: Optional[float] = None
     temporal: Optional[float] = None
+    lipsync: Optional[float] = None
     metadata: Optional[float] = None
 
 class ExplainabilityData(BaseModel):
@@ -18,6 +19,12 @@ class ExplainabilityData(BaseModel):
     manipulated_regions: Optional[List[Dict[str, Any]]] = None
     audio_inconsistencies: Optional[Dict[str, Any]] = None
     metadata_flags: Optional[List[str]] = None
+    
+    # Detailed per-modality metrics
+    audio_metrics: Optional[Dict[str, Any]] = None
+    lipsync_details: Optional[Dict[str, Any]] = None
+    vision_details: Optional[Dict[str, Any]] = None
+    temporal_details: Optional[Dict[str, Any]] = None
 
 class AnalysisResult(BaseModel):
     job_id: str

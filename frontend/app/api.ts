@@ -2,7 +2,7 @@ import { http } from "@/lib/axios";
 
 export type MediaKind = "image" | "video" | "audio";
 
-export type AnalysisLabel = "Authentic" | "Manipulated";
+export type AnalysisLabel = "Authentic" | "Suspicious" | "Manipulated";
 
 export type RiskLevel = "Low" | "Medium" | "High";
 
@@ -23,6 +23,7 @@ export type ModalityScores = {
   vision?: number;
   audio?: number;
   temporal?: number;
+  lipsync?: number;
   metadata?: number;
 };
 
@@ -61,6 +62,7 @@ function normalizeRiskLevel(v: unknown): RiskLevel {
 function normalizeLabel(v: unknown): AnalysisLabel {
   const s = String(v ?? "").toLowerCase();
   if (s.includes("fake") || s.includes("manip") || s.includes("deepfake")) return "Manipulated";
+  if (s.includes("suspicious")) return "Suspicious";
   return "Authentic";
 }
 

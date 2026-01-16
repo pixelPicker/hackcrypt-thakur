@@ -22,24 +22,72 @@ class TemporalDetector:
         model.eval()
         return model
     
+    def _read_sampled_frames(self, video_path: str, frame_count: int, max_frames: int = 30):
+        """Read sampled frames from video file"""
+        frames = []
+        cap = cv2.VideoCapture(video_path)
+        
+        sample_rate = max(1, frame_count // max_frames)
+        
+        for i in range(0, frame_count, sample_rate):
+            if len(frames) >= max_frames:
+                break
+            
+            cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+            ret, frame = cap.read()
+            
+            if ret:
+                # Downscale to save memory
+                height, width = frame.shape[:2]
+                max_height = 360
+                if height > max_height:
+                    scale = max_height / height
+                    new_width = int(width * scale)
+                    frame = cv2.resize(frame, (new_width, max_height), interpolation=cv2.INTER_AREA)
+                
+                frames.append(frame)
+        
+        cap.release()
+        return frames
+    
     def detect(self, media_data: dict):
         if media_data["type"] != "video":
             return {"score": 0.5, "timeline": None}
         
+        from utils.memory_manager import MemoryManager
+        
+        video_path = media_data.get("video_path") or media_data.get("local_path")
+        if not video_path:
+            logger.error("No video path provided for temporal detection")
+            return {"score": 0.5, "timeline": None}
+        
         try:
-            frames = media_data["frames"]
             fps = media_data.get("fps", 30)
+            frame_count = media_data.get("frame_count", 0)
             
-            temporal_features = self._extract_temporal_features(frames)
+            # Read frames on-demand
+            frames = self._read_sampled_frames(video_path, frame_count)
             
-            input_tensor = torch.FloatTensor(temporal_features).unsqueeze(0).to(self.device)
+            if len(frames) == 0:
+                return {"score": 0.5, "timeline": None}
             
-            with torch.no_grad():
-                outputs, (hidden, cell) = self.model(input_tensor)
+            with MemoryManager.memory_efficient_context():
+                temporal_features = self._extract_temporal_features(frames)
                 
-                manipulated_score = torch.sigmoid(hidden[-1].mean()).item()
+                input_tensor = torch.FloatTensor(temporal_features).unsqueeze(0).to(self.device)
+                
+                with torch.no_grad():
+                    outputs, (hidden, cell) = self.model(input_tensor)
+                    manipulated_score = torch.sigmoid(hidden[-1].mean()).item()
+                
+                # Clear tensors
+                del input_tensor, outputs, hidden, cell
             
-            timeline = self._generate_timeline(frames, fps, manipulated_score)
+            timeline = self._generate_timeline(len(frames), fps, manipulated_score, frame_count)
+            
+            # Cleanup frames
+            del frames
+            MemoryManager.clear_memory()
             
             return {
                 "score": manipulated_score,
@@ -74,13 +122,12 @@ class TemporalDetector:
         
         return np.array(features)
     
-    def _generate_timeline(self, frames: list, fps: float, score: float):
+    def _generate_timeline(self, sampled_frames_count: int, fps: float, score: float, total_frame_count: int):
         timeline = []
         
-        num_frames = len(frames)
-        duration = num_frames / fps if fps > 0 else num_frames
+        duration = total_frame_count / fps if fps > 0 else total_frame_count
         
-        num_points = min(20, num_frames)
+        num_points = min(20, sampled_frames_count)
         
         for i in range(num_points):
             timestamp = (i / num_points) * duration
@@ -91,7 +138,7 @@ class TemporalDetector:
             timeline.append({
                 "timestamp": float(timestamp),
                 "score": float(anomaly_score),
-                "frame_index": int((i / num_points) * num_frames)
+                "frame_index": int((i / num_points) * total_frame_count)
             })
         
         return timeline

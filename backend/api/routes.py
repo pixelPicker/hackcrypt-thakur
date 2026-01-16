@@ -1,4 +1,6 @@
+import os
 from fastapi import APIRouter, File, UploadFile, HTTPException
+from services.lipsync_detector import LipSyncDetector
 from api.schemas import AnalysisResult, JobResponse
 from utils.storage import upload_to_storage
 from utils.logger import logger
@@ -55,51 +57,63 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
         modality_scores = {}
         explainability_data = {}
         
+        # --- 1. VISION DETECTION ---
         if media_data["type"] in ["image", "video"]:
+            from utils.memory_manager import MemoryManager
+            
+            if media_data["type"] == "video":
+                MemoryManager.log_memory_usage("Starting video analysis: ")
+            
             vision_detector = VisionDetector()
             vision_result = vision_detector.detect(media_data)
             modality_scores["vision"] = vision_result["score"]
             explainability_data["heatmap"] = vision_result.get("heatmap")
             explainability_data["manipulated_regions"] = vision_result.get("regions")
         
+        # --- 2. AUDIO DETECTION ---
         if media_data["type"] in ["audio", "video"]:
             audio_detector = AudioDeepfakeDetector()
-            # analyze_audio expects a file path, not the full media_data dict
-            audio_path = media_data.get("audio_path") or media_data.get("video_path")
+            # Determine path (handles extracted audio from video or raw audio files)
+            audio_path = media_data.get("audio_path") or media_data.get("video_path") or media_data.get("local_path")
+            
             audio_result = audio_detector.analyze_audio(audio_path)
             
-            # audio_result returns "confidence" as percentage (0-100), convert to 0-1 score
-            if audio_result.get("status") == "success":
-                modality_scores["audio"] = audio_result["confidence"] / 100.0
-                explainability_data["audio_detailed_scores"] = audio_result.get("detailed_scores", {})
-            else:
-                logger.warning(f"Audio detection failed: {audio_result.get('message')}")
-                modality_scores["audio"] = 0.5  # neutral score on error
-        
+            # Map score to 0-1 range
+            modality_scores["audio"] = float(audio_result.get("fake_prob", 0.5))
+            explainability_data["audio_metrics"] = audio_result.get("analysis_metrics", {})
+
+        # --- 3. VIDEO SPECIFIC (TEMPORAL & LIPSYNC) ---
         if media_data["type"] == "video":
+            # A. Temporal Consistency
             temporal_detector = TemporalDetector()
             temporal_result = temporal_detector.detect(media_data)
             modality_scores["temporal"] = temporal_result["score"]
             
-            # Convert timeline format from {timestamp, score, frame_index} to {t, score}
             raw_timeline = temporal_result.get("timeline", [])
-            if raw_timeline:
-                converted_timeline = [
-                    {"t": point["timestamp"], "score": point["score"]} 
-                    for point in raw_timeline
-                ]
-                explainability_data["anomalies_timeline"] = converted_timeline
-            else:
-                explainability_data["anomalies_timeline"] = None
-        
+            explainability_data["anomalies_timeline"] = [
+                {"t": p["timestamp"], "score": p["score"]} for p in raw_timeline
+            ] if raw_timeline else None
+
+            # B. LIPSYNC DETECTION (NEW) 👄
+            logger.info(f"Running LipSync analysis for job {job_id}")
+            lipsync_detector = LipSyncDetector()
+            # Pass media_data which contains the local_path
+            ls_result = lipsync_detector.detect(media_data)
+            
+            modality_scores["lipsync"] = float(ls_result["score"])
+            explainability_data["lipsync_details"] = ls_result.get("inconsistencies", {})
+
+        # --- 4. FUSION & METADATA ---
         modality_scores["metadata"] = media_data.get("metadata_score", 0.5)
         explainability_data["metadata_flags"] = media_data.get("metadata_flags", [])
         
+        # The FusionEngine now receives "lipsync" in the dict
         fusion_engine = FusionEngine()
         final_score, label = fusion_engine.fuse(modality_scores, media_data["type"])
         
         risk_level = "Low" if final_score < 0.3 else ("Medium" if final_score < 0.7 else "High")
         
+        # --- 5. EXPLAINABILITY ---
         explainability_engine = ExplainabilityEngine()
         enhanced_explainability = explainability_engine.enhance(
             explainability_data,
@@ -109,17 +123,18 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
         
         processing_time = int((time.time() - start_time) * 1000)
         
-        # Convert local file path to public URL if needed
+        # Path resolution for public URL
         public_media_url = media_url
         if media_url.startswith("file://"):
-             # Assuming temp_storage is mounted at /uploads
-             filename = media_url.split("/")[-1]
-             public_media_url = f"http://localhost:8000/uploads/{filename}"
+            # Extract filename from file path (handles both ./temp_storage/file.mp4 and absolute paths)
+            file_path = media_url.replace("file://", "")
+            filename = os.path.basename(file_path)
+            public_media_url = f"http://localhost:8000/uploads/{filename}"
 
-        result = {
+        return {
             "job_id": job_id,
             "label": label,
-            "confidence_score": final_score,
+            "confidence_score": round(final_score, 4),
             "risk_level": risk_level,
             "modality_scores": modality_scores,
             "explainability": enhanced_explainability,
@@ -127,10 +142,6 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
             "media_url": public_media_url,
             "processing_time_ms": processing_time
         }
-        
-        logger.info(f"Analysis complete for job {job_id}: {label} ({final_score:.2f})")
-        
-        return result
     
     except Exception as e:
         logger.error(f"Error analyzing job {job_id}: {str(e)}")

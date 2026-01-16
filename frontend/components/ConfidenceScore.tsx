@@ -5,9 +5,10 @@ import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export type ConfidenceScoreProps = {
-  label: "Authentic" | "Manipulated";
+  label: "Authentic" | "Suspicious" | "Manipulated";
   confidence: number;
   riskLevel: "Low" | "Medium" | "High";
 };
@@ -58,7 +59,14 @@ export function ConfidenceScore({
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-xl font-semibold tracking-tight"
+            className={cn(
+              "text-xl font-semibold tracking-tight",
+              label === "Authentic"
+                ? "text-emerald-500"
+                : label === "Suspicious"
+                ? "text-yellow-500"
+                : "text-red-500"
+            )}
           >
             {label}
           </motion.div>
