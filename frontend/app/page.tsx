@@ -3,124 +3,95 @@
 import { motion } from "framer-motion";
 
 export default function Home() {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
-    },
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { duration: 0.4, ease: "easeOut" },
-    },
-  };
-
   return (
-    <div
-      className="relative 
+    <div className="relative min-h-screen bg-[url('/bg.jpg')] bg-cover bg-center bg-no-repeat">
 
-"
-    >
-      {/* Animated background gradients */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.12, 0.18, 0.12],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute left-[10%] top-[10%] h-96 w-96 rounded-full bg-blue-500/20 blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.1, 0.15, 0.1],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1,
-          }}
-          className="absolute right-[15%] top-[20%] h-96 w-96 rounded-full bg-red-500/20 blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.25, 1],
-            opacity: [0.1, 0.15, 0.1],
-          }}
-          transition={{
-            duration: 9,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2,
-          }}
-          className="absolute bottom-[10%] left-[50%] h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl"
-        />
-      </div>
+      {/* DARK OVERLAY */}
+      <div className="absolute inset-0 bg-black/60 pointer-events-none"></div>
 
-      <main className="mx-auto w-full max-w-7xl px-5  h-screen max-h-screen ">
-        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center max-h-screen h-screen">
-          <section className="space-y-6 mt-20">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-5 py-2 text-sm text-neutral-300 text-muted-foreground">
+      {/* MAIN CONTENT */}
+      <main className="relative z-10 mx-auto w-full max-w-7xl px-5 min-h-screen">
+
+        <div className="py-25   md:py-0 md:grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr] items-center gap-8 min-h-screen">
+
+          {/* ================= LEFT CONTENT ================= */}
+          <section
+            className="
+              flex flex-col
+              items-center md:items-start
+              justify-center
+              text-center md:text-left
+              space-y-4 sm:space-y-6
+              mt-5 md:mt-0
+              px-2
+            "
+          >
+
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-gray-300">
               Forensic UI • Real-time confidence • Media preview
             </div>
-            <h1 className="text-6xl font-semibold tracking-tight">
+
+            {/* Heading */}
+            <h1 className="text-2xl sm:text-4xl md:text-6xl font-semibold tracking-tight leading-tight text-white">
               Deepfake Detection and Media Authenticity Analyzer
             </h1>
 
-            <motion.p
-              variants={itemVariants}
-              className="max-w-xl leading-6 text-neutral-300 text-muted-foreground"
-            >
+            {/* Description */}
+            <motion.p className="max-w-xl leading-6 text-neutral-300">
               Upload a single image, video, or audio file and receive an
               authenticity verdict, confidence score, and risk level. Results
               are rendered with forensic widgets for rapid review.
             </motion.p>
 
-            <div className="flex flex-wrap items-center gap-6">
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+
+              {/* Primary Button */}
               <a
                 href="/upload"
-                className="relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6  font-medium text-primary-foreground bg-primary overflow-hidden transition-all duration-300 bg-linear-to-br from-blue-900/50 hover:from-blue-900/75 via-indigo-800/50 hover:via-indigo-800/75 to-purple-900/50 hover:to-purple-900/75 shadow-[0_0_10px_rgba(99,102,241,0.5)] before:absolute before:inset-0 before:rounded-full border-2 border-white/30 before:opacity-75 hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] before:animate-glow before:-z-10 text-lg"
+                className="
+                  relative inline-flex h-11 items-center justify-center
+                  rounded-full px-8 font-medium text-white
+                  overflow-hidden transition-all duration-300
+                  bg-gradient-to-br from-blue-900/60 via-indigo-800/60 to-purple-900/60
+                  hover:from-blue-900/80 hover:via-indigo-800/80 hover:to-purple-900/80
+                  shadow-[0_0_12px_rgba(99,102,241,0.5)]
+                  hover:shadow-[0_0_20px_rgba(99,102,241,0.7)]
+                  border-2 border-white/30
+                "
               >
                 Start Analysis
               </a>
 
+              {/* Secondary Button */}
               <a
                 href="/results"
-                className="relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6 font-medium text-primary-foreground bg-primary overflow-hidden transition-all border-2 border-white/30 duration-300 hover:bg-white/10 before:absolute before:inset-0 before:rounded-full before:opacity-75 before:animate-glow before:-z-10 text-lg text-neutral-300"
+                className="
+                  relative inline-flex h-11 items-center justify-center
+                  rounded-full px-8 font-medium text-neutral-300
+                  overflow-hidden transition-all duration-300
+                  border-2 border-white/30
+                  hover:bg-white/10
+                "
               >
                 View Last Result
               </a>
+
             </div>
           </section>
 
-          <section className="rounded-2xl  h-full w-124  ">
-            <div className="image absolute right-8    bottom-3 h-120 ">
-              <img className="w-140" src="/main.png"></img>
-            </div>
+          {/* ================= RIGHT IMAGE ================= */}
+          <section className=" md:block relative md:h-full md:min-h-screen min-h-90">
+
+            <img
+              src="/main.png"
+              alt="Preview"
+              className="absolute bottom-0 right-0 w-150 object-contain"
+            />
+
           </section>
+
         </div>
       </main>
     </div>

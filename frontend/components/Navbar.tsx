@@ -12,29 +12,23 @@ import { menu } from "framer-motion/client";
 export function Navbar({ className }: { className?: string }) {
   const [menuState, setMenuState] = useState(false);
   return (
-    <motion.header
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+    <header
+    
       className={cn(
-        "sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl",
+        "fixed w-full top-0 z-50 px-4 border-b border-border/60 bg-background/70 backdrop-blur-xl",
         className
       )}
     >
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3">
-        <Link href="/" className="group flex items-center gap-2">
-          <motion.div
-            whileHover={{ rotate: 360 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-card/60 backdrop-blur-sm transition-colors group-hover:border-primary/50"
-          >
+      <div className="mx-auto flex w-full md:max-w-7xl  items-center justify-between md:p-5 py-3 px-1">
+        <Link href="/" className="flex items-center gap-1">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-card/60">
             <ShieldCheck className="h-5 w-5" />
-          </motion.div>
-          <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-wide text-foreground transition-colors">
+          </div>
+          <div className="">
+            <div className="md:text-xl text-sm font-semibold tracking-wide text-foreground">
               Deepfake Detection
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs  text-muted-foreground">
               Media Authenticity Analyzer
             </div>
           </div>
@@ -45,7 +39,7 @@ export function Navbar({ className }: { className?: string }) {
             href="/upload"
             className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground hover:scale-105 active:scale-95"
           >
-            <Upload className="h-4 w-4" />
+            <Upload className="md:h-4 md:w-4 h-3 w-3" />
             Upload
           </Link>
           <Link
@@ -109,6 +103,6 @@ export function Navbar({ className }: { className?: string }) {
           </ul>
         </nav>
       </div>
-    </motion.header>
+    </header>
   );
 }
