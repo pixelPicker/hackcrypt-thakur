@@ -35,7 +35,7 @@ class AudioDeepfakeDetector:
 
         try:
             # Use a lightweight pre-trained model from HuggingFace
-            model_name = "facebook/wav2vec2-base-960h"
+            model_name = "facebook/wav2vec2-large-xlsr-53"
             print(f"📂 Loading Audio Model from HuggingFace: {model_name}")
             print(f"💾 Cache directory: {self.model_cache_dir}")
             

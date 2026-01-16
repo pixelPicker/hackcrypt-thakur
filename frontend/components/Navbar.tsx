@@ -98,7 +98,7 @@ export function Navbar({ className }: { className?: string }) {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="absolute top-full left-0 w-full overflow-hidden bg-background/95 backdrop-blur-3xl border-b border-white/10 shadow-2xl lg:hidden"
+              className="absolute top-full left-0 w-full overflow-hidden bg-background/95 backdrop-blur-3xl border-b border-white/10 shadow-2xl lg:hidden bg-gray-800"
             >
               <nav className="flex flex-col p-4 gap-2">
                 {[
@@ -114,7 +114,7 @@ export function Navbar({ className }: { className?: string }) {
                     <Link
                       href={link.href}
                       onClick={() => setMenuState(false)}
-                      className="flex items-center gap-3 p-3 rounded-xl text-muted-foreground hover:text-white hover:bg-white/5 transition-all active:scale-98"
+                      className="flex items-center gap-3 p-3 rounded-xl text-muted-foreground hover:text-white hover:bg-white/5 transition-all active:scale-98 bg-gray-900"
                     >
                       <div className="p-2 rounded-lg bg-white/5">
                         <link.icon className="h-5 w-5" />
