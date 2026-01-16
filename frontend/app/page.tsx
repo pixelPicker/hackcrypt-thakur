@@ -1,11 +1,12 @@
 "use client";
 
+import { Navbar } from "@/components/Navbar";
 import { motion } from "framer-motion";
 
 export default function Home() {
   return (
     <div className="relative min-h-screen bg-[url('/bg.jpg')] bg-cover bg-center bg-no-repeat">
-
+<Navbar />
       {/* DARK OVERLAY */}
       <div className="absolute inset-0 bg-black/60 pointer-events-none"></div>
 
