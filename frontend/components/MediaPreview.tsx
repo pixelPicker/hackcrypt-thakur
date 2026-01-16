@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import videojs from "video.js";
 import WaveSurfer from "wavesurfer.js";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { PauseCircle, PlayCircle } from "lucide-react";
 
 export type MediaPreviewProps = {
   file?: File | null;
@@ -49,31 +50,10 @@ export function MediaPreview({ file, url, className }: MediaPreviewProps) {
 }
 
 function VideoPreview({ url, className }: { url: string; className?: string }) {
-  const videoRef = React.useRef<HTMLVideoElement | null>(null);
-  const playerRef = React.useRef<ReturnType<typeof videojs> | null>(null);
-
-  React.useEffect(() => {
-    if (!videoRef.current) return;
-
-    playerRef.current = videojs(videoRef.current, {
-      controls: true,
-      preload: "auto",
-      fluid: true,
-      sources: [{ src: url }],
-    });
-
-    return () => {
-      playerRef.current?.dispose();
-      playerRef.current = null;
-    };
-  }, [url]);
-
   return (
-    <div className={className}>
-      <div className="overflow-hidden rounded-xl border border-border/60">
-        <div data-vjs-player>
-          <video ref={videoRef} className="video-js vjs-big-play-centered" />
-        </div>
+    <div className={cn("max-w-3xl", className)}>
+      <div className="relative mx-auto rounded-xl border border-border/60 overflow-hidden">
+        <video controls src={url} className="w-full h-full rounded-xl" />
       </div>
     </div>
   );
@@ -114,21 +94,20 @@ function AudioPreview({ url, className }: { url: string; className?: string }) {
 
   return (
     <div className={className}>
-      <div className="rounded-xl border border-border/60 bg-card/40 p-4">
+      <div className="rounded-xl border border-border/60 bg-card/40 p-4 bg-black">
         <div ref={containerRef} />
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-col items-center gap-5">
           <Button
             type="button"
             variant="secondary"
             disabled={!ready}
             onClick={() => wsRef.current?.playPause()}
+            className="cursor-pointer"
           >
-            {playing ? "Pause" : "Play"}
+            {playing ? <PauseCircle /> : <PlayCircle />}
           </Button>
-          <div className="text-xs text-muted-foreground">
-            Waveform analysis view
-          </div>
         </div>
+        <div className="text-xs text-neutral-500">Waveform analysis view</div>
       </div>
     </div>
   );

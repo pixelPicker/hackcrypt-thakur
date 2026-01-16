@@ -55,7 +55,7 @@ export function UploadDropzone({
     <div
       {...getRootProps()}
       className={cn(
-        "group relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border/70 bg-card/40 px-6 py-10 text-center outline-none transition-all duration-300 hover:bg-card/60 hover:border-border hover:scale-[1.01]",
+        "group relative flex min-h-220px cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border/70 bg-card/40 px-6 py-10 text-center outline-none transition-all duration-300 hover:bg-card/60 hover:border-border hover:scale-[1.01]",
         isDragActive && "border-primary/70 bg-secondary/40 scale-[1.02]",
         disabled && "cursor-not-allowed opacity-70"
       )}

@@ -11,6 +11,7 @@ import {
   Shield,
   Trash,
   Trash2,
+  X,
 } from "lucide-react";
 
 import { analyzeMedia } from "@/app/api";
@@ -60,6 +61,7 @@ export default function UploadPage() {
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(f);
     });
+    console.log(f.type); // must be "video/mp4"
   }, []);
 
   const canAnalyze = Boolean(file) && !mutation.isPending;
@@ -71,11 +73,15 @@ export default function UploadPage() {
           className={`fixed inset-0 z-999 p-4 rounded-xl flex items-center justify-center bg-black/60 ${
             showPreview ? "block" : "hidden"
           }`}
-          onClick={() => {
-            setShowPreview((prev) => !prev);
-          }}
         >
           <div className="relative">
+            <div className="absolute top-2 right-2 cursor-pointer z-999">
+              <X
+                onClick={() => {
+                  setShowPreview((prev) => !prev);
+                }}
+              />
+            </div>
             <MediaPreview file={file} url={mediaUrl} />
           </div>
         </div>

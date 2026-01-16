@@ -78,6 +78,7 @@ function ResultsContent() {
             type="button"
             variant="secondary"
             onClick={() => router.push("/upload")}
+            className="cursor-pointer"
           >
             <ArrowLeft className="h-4 w-4" />
             New upload
@@ -124,7 +125,12 @@ function ResultsContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button type="button" onClick={() => router.push("/upload")}>
+            <Button
+              type="button"
+              className="cursor-pointer"
+              variant={"outline"}
+              onClick={() => router.push("/upload")}
+            >
               Go to Upload
             </Button>
           </CardContent>
