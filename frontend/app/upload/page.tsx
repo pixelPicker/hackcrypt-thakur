@@ -4,7 +4,7 @@ import * as React from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, FileWarning, Shield } from "lucide-react";
+import { ArrowRight, Eye, FileWarning, Shield, Trash } from "lucide-react";
 
 import { analyzeMedia } from "@/app/api";
 import { UploadDropzone } from "@/components/UploadDropzone";
@@ -23,6 +23,7 @@ export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = React.useState<File | null>(null);
   const [mediaUrl, setMediaUrl] = React.useState<string | null>(null);
+  const [showPreview, setShowPreview] = React.useState(false);
 
   React.useEffect(() => {
     return () => {
@@ -58,6 +59,20 @@ export default function UploadPage() {
 
   return (
     <div className="flex flex-col mx-auto w-full max-w-6xl p-5">
+      {file && mediaUrl ? (
+        <div
+          className={`fixed inset-0 z-999 p-4 rounded-xl flex items-center justify-center bg-black/60 ${
+            showPreview ? "block" : "hidden"
+          }`}
+          onClick={() => {
+            setShowPreview((prev) => !prev);
+          }}
+        >
+          <div className="relative">
+            <MediaPreview file={file} url={mediaUrl} />
+          </div>
+        </div>
+      ) : null}
       <div className="w-full max-w-4xl self-center">
         <Card className="border-0">
           <CardHeader>
@@ -67,7 +82,7 @@ export default function UploadPage() {
               will return a verdict, confidence, and risk level.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-5 ">
             <UploadDropzone
               disabled={mutation.isPending}
               onFileSelected={handleFileSelected}
@@ -85,31 +100,42 @@ export default function UploadPage() {
                 >
                   <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/40 px-4 py-3">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">
+                      <div className="flex gap-4 truncate text-sm font-medium">
                         {file.name}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {file.type || "unknown"}
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setFile(null);
-                        setMediaUrl((prev) => {
-                          if (prev) URL.revokeObjectURL(prev);
-                          return null;
-                        });
-                      }}
-                      disabled={mutation.isPending}
-                      className="cursor-pointer"
-                    >
-                      Clear
-                    </Button>
+                    <div className="flex items-center justify-center">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setShowPreview((prev) => !prev);
+                        }}
+                        disabled={mutation.isPending}
+                        className="cursor-pointer"
+                      >
+                        <Eye size={24} />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          setFile(null);
+                          setMediaUrl((prev) => {
+                            if (prev) URL.revokeObjectURL(prev);
+                            return null;
+                          });
+                        }}
+                        disabled={mutation.isPending}
+                        className="cursor-pointer"
+                      >
+                        <Trash size={24} />
+                      </Button>
+                    </div>
                   </div>
-
-                  <MediaPreview file={file} url={mediaUrl} />
                 </motion.div>
               ) : null}
             </AnimatePresence>

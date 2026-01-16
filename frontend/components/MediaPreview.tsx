@@ -31,7 +31,7 @@ export function MediaPreview({ file, url, className }: MediaPreviewProps) {
         <img
           src={url}
           alt={file.name}
-          className="h-auto w-full rounded-xl border border-border/60 object-contain"
+          className="h-72 w-auto rounded-xl object-contain"
         />
       </div>
     );
