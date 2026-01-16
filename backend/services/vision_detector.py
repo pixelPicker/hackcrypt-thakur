@@ -7,6 +7,9 @@ import cv2
 import numpy as np
 from utils.logger import logger
 
+# Set longer timeout for HuggingFace downloads
+os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '60'
+
 class VisionDetector:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

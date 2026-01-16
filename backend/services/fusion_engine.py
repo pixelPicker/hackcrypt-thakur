@@ -4,14 +4,21 @@ from utils.logger import logger
 class FusionEngine:
     def __init__(self):
         self.weights = {
-            "image": {"vision": 0.8, "metadata": 0.2},
-            "audio": {"audio": 0.9, "metadata": 0.1},
+            "image": {
+                "vision": 0.85,      # Primary signal - facial/visual artifacts
+                "metadata": 0.15     # EXIF tampering, compression artifacts
+            },
+            "audio": {
+                "audio": 0.92,       # Primary signal - voice synthesis detection
+                "metadata": 0.08     # Audio metadata forensics
+            },
             "video": {
-                "vision": 0.35,     # Visual frame analysis
-                "audio": 0.25,      # Audio deepfake detection
-                "temporal": 0.15,   # Frame-to-frame consistency
-                "lipsync": 0.15,    # Audio-visual synchronization
-                "metadata": 0.10    # Metadata forensics
+                # Video is multi-modal - balance all signals
+                "lipsync": 0.30,     # ⭐ STRONGEST - Voice-lip mismatch is hard to fake
+                "vision": 0.25,      # Face swap artifacts, unnatural movements
+                "audio": 0.20,       # Voice deepfake in video audio track
+                "temporal": 0.20,    # Frame inconsistencies, continuity errors
+                "metadata": 0.05     # Metadata forensics (weakest standalone signal)
             }
         }
     

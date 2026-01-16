@@ -8,6 +8,14 @@ import shutil
 from urllib.parse import urlparse
 from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
 import torch.nn.functional as F
+import warnings
+from transformers import logging as transformers_logging
+
+# Suppress expected warnings about model weight initialization
+transformers_logging.set_verbosity_error()
+
+# Set longer timeout for HuggingFace downloads
+os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '60'
 
 # =========================================================
 # 1. THE CORE LOGIC (Singleton - Loads Model Once)

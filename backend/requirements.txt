@@ -15,7 +15,7 @@ torch>=2.1.0
 torchvision>=0.16.0
 torchaudio>=2.1.0
 timm
-opencv-python
+opencv-contrib-python==4.11.0.86
 mediapipe
 librosa
 transformers
@@ -30,7 +30,5 @@ scikit-learn
 loguru
 Pillow
 huggingface-hub
-python-multipart
-numpy
+soundfile
 scipy
-opencv-python
