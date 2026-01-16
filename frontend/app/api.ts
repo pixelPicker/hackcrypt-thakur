@@ -33,6 +33,7 @@ export type AnalysisResult = {
   risk_level: RiskLevel;
   modality_scores?: ModalityScores;
   media_type?: string;
+  media_url?: string;
   processing_time_ms?: number;
   explainability?: Record<string, unknown>;
   heatmap?: HeatmapBox[];
@@ -118,6 +119,7 @@ export function normalizeAnalysisResult(raw: any): AnalysisResult {
     risk_level: normalizeRiskLevel(riskRaw),
     modality_scores: raw?.modality_scores,
     media_type: raw?.mediaKind ?? raw?.media_kind ?? raw?.media_type,
+    media_url: raw?.media_url ?? raw?.url,
     processing_time_ms: raw?.processing_time_ms,
     explainability: raw?.explainability ?? raw?.details ?? raw?.meta,
     timeline: normalizeTimeline(timelineRaw),

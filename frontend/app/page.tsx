@@ -12,7 +12,7 @@ export default function Home() {
       {/* MAIN CONTENT */}
       <main className="relative z-10 mx-auto w-full max-w-7xl px-5 min-h-screen">
 
-        <div className="py-25   md:py-0 md:grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr] items-center gap-8 min-h-screen">
+        <div className="pt-25   md:py-0 md:grid grid-cols-1 md:grid-cols-[1.0fr_1.0fr] items-center gap-8 min-h-screen">
 
           {/* ================= LEFT CONTENT ================= */}
           <section
@@ -21,7 +21,7 @@ export default function Home() {
               items-center md:items-start
               justify-center
               text-center md:text-left
-              space-y-4 sm:space-y-6
+              space-y-4 
               mt-5 md:mt-0
               px-2
             "
@@ -33,7 +33,7 @@ export default function Home() {
             </div>
 
             {/* Heading */}
-            <h1 className="text-2xl sm:text-4xl md:text-6xl font-semibold tracking-tight leading-tight text-white">
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-semibold tracking-tight leading-tight text-white">
               Deepfake Detection and Media Authenticity Analyzer
             </h1>
 
@@ -82,12 +82,12 @@ export default function Home() {
           </section>
 
           {/* ================= RIGHT IMAGE ================= */}
-          <section className=" md:block relative md:h-full md:min-h-screen min-h-90">
+          <section className=" md:block relative flex  md:h-full md:min-h-screen h-full items-end ">
 
             <img
               src="/main.png"
               alt="Preview"
-              className="absolute bottom-0 right-0 w-150 object-contain"
+              className="  mt-3 md:mt-0 w-220 object-contain md:absolute md:bottom-0"
             />
 
           </section>

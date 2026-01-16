@@ -27,4 +27,5 @@ class AnalysisResult(BaseModel):
     modality_scores: ModalityScore
     explainability: ExplainabilityData
     media_type: str
+    media_url: Optional[str] = None
     processing_time_ms: Optional[int] = None
