@@ -3,12 +3,13 @@ uvicorn[standard]
 celery
 redis
 psycopg2-binary
-minio
 sqlalchemy
 alembic
 python-multipart
 pydantic
 pydantic-settings
+
+boto3
 
 torch
 torchvision

@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from api.schemas import AnalysisResult, JobResponse
 from utils.storage import upload_to_storage
