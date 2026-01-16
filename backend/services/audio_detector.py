@@ -1,113 +1,145 @@
+import os
 import torch
-import torch.nn as nn
-import torchaudio
 import librosa
 import numpy as np
-from utils.logger import logger
+import soundfile as sf
+from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
+import torch.nn.functional as F
 
-class AudioDetector:
+class AudioDeepfakeDetector:
     def __init__(self):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = self._load_model()
-        logger.info(f"AudioDetector initialized on {self.device}")
-    
-    def _load_model(self):
-        model = nn.Sequential(
-            nn.Linear(128, 256),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 2)
-        )
-        model = model.to(self.device)
-        model.eval()
-        return model
-    
-    def detect(self, media_data: dict):
+        """
+        Initializes the Deepfake Detector using the LOCALLY saved model.
+        """
+        # 1. ROBUST DEVICE SELECTION
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"🔊 Audio Detector initializing on: {self.device.upper()}")
+
+        # 2. LOCATE LOCAL MODEL (The Refactored Part) 🔍
+        # This logic finds the 'backend' folder relative to this script, 
+        # then navigates to 'models/pretrained'.
+        
+        # Get directory of THIS file (e.g., backend/services)
+        current_script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Go up one level to 'backend', then into 'models/pretrained'
+        # Adjust '..' depending on where you put this file. 
+        # If this file is in 'backend/services/', we go up once (..) to reach 'backend'.
+        self.model_path = os.path.join(current_script_dir, "..", "models", "pretrained")
+        
+        # Normalize path (fixes slashes for Windows)
+        self.model_path = os.path.normpath(self.model_path)
+
+        # 3. SAFE LOADING (OFFLINE MODE)
         try:
-            if media_data["type"] == "audio":
-                waveform = media_data["waveform"]
-                sr = media_data["sample_rate"]
-            elif media_data["type"] == "video":
-                import subprocess
-                audio_path = media_data["video_path"].replace(".mp4", "_audio.wav")
-                subprocess.run([
-                    "ffmpeg", "-i", media_data["video_path"],
-                    "-vn", "-acodec", "pcm_s16le", "-ar", "16000",
-                    "-ac", "1", audio_path, "-y"
-                ], capture_output=True)
-                waveform, sr = librosa.load(audio_path, sr=None)
-            else:
-                return {"score": 0.5, "inconsistencies": None}
+            print(f"📂 Loading Local Model from: {self.model_path}")
             
-            features = self._extract_features(waveform, sr)
+            # Check if files actually exist
+            if not os.path.exists(os.path.join(self.model_path, "config.json")):
+                raise FileNotFoundError(f"Model files not found in {self.model_path}")
+
+            # Load from Disk
+            self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.model_path, local_files_only=True)
+            self.model = Wav2Vec2ForSequenceClassification.from_pretrained(self.model_path, local_files_only=True).to(self.device)
+            self.model.eval() # Set to evaluation mode
             
-            input_tensor = torch.FloatTensor(features).unsqueeze(0).to(self.device)
+            print("✅ Audio Model loaded successfully (OFFLINE MODE)")
             
-            with torch.no_grad():
-                outputs = self.model(input_tensor)
-                probabilities = torch.softmax(outputs, dim=1)
-                manipulated_score = probabilities[0][1].item()
-            
-            inconsistencies = self._detect_inconsistencies(waveform, sr, manipulated_score)
-            
+        except Exception as e:
+            print(f"❌ CRITICAL ERROR: Could not load local model.")
+            print(f"   Reason: {e}")
+            print(f"   💡 Tip: Did you run 'download_hypermoon.py'?")
+            self.model = None
+
+    def analyze_audio(self, file_path: str) -> dict:
+        """
+        Main API Entry Point.
+        """
+        # A. PRE-FLIGHT CHECKS
+        if not self.model:
             return {
-                "score": manipulated_score,
-                "inconsistencies": inconsistencies
+                "status": "error", 
+                "message": "AI Model is not loaded. Check server logs."
             }
         
-        except Exception as e:
-            logger.error(f"Audio detection error: {str(e)}")
-            return {"score": 0.5, "inconsistencies": None}
-    
-    def _extract_features(self, waveform: np.ndarray, sr: int):
-        try:
-            mfccs = librosa.feature.mfcc(y=waveform, sr=sr, n_mfcc=13)
-            mfccs_mean = np.mean(mfccs, axis=1)
-            
-            spectral_centroid = librosa.feature.spectral_centroid(y=waveform, sr=sr)
-            spectral_centroid_mean = np.mean(spectral_centroid)
-            
-            zero_crossing_rate = librosa.feature.zero_crossing_rate(waveform)
-            zcr_mean = np.mean(zero_crossing_rate)
-            
-            features = np.concatenate([
-                mfccs_mean,
-                [spectral_centroid_mean, zcr_mean]
-            ])
-            
-            features = np.pad(features, (0, max(0, 128 - len(features))))[:128]
-            
-            return features
-        
-        except Exception as e:
-            logger.error(f"Feature extraction error: {str(e)}")
-            return np.zeros(128)
-    
-    def _detect_inconsistencies(self, waveform: np.ndarray, sr: int, score: float):
-        try:
-            inconsistencies = {
-                "voice_cloning_detected": score > 0.7,
-                "lip_sync_mismatch": score > 0.6,
-                "unnatural_prosody": score > 0.5,
-                "spectral_anomalies": []
+        if not os.path.exists(file_path):
+            return {
+                "status": "error", 
+                "message": f"File not found at path: {file_path}"
             }
+
+        try:
+            # B. AUDIO LOADING (Librosa + SoundFile)
+            # sr=16000 is MANDATORY for Wav2Vec2
+            audio, sr = librosa.load(file_path, sr=16000)
             
-            if score > 0.6:
-                duration = len(waveform) / sr
-                num_segments = min(10, int(duration))
+            # C. MEMORY PROTECTION (Chunking)
+            # Analyze max 10 seconds to keep speed high
+            max_seconds = 10
+            if len(audio) > max_seconds * sr:
+                audio = audio[:max_seconds * sr]
+
+            # D. TOKENIZATION
+            inputs = self.feature_extractor(
+                audio, 
+                sampling_rate=16000, 
+                return_tensors="pt", 
+                padding=True
+            ).to(self.device)
+
+            # E. INFERENCE
+            with torch.no_grad():
+                logits = self.model(**inputs).logits
+                probs = F.softmax(logits, dim=-1)
                 
-                for i in range(num_segments):
-                    start_time = (i / num_segments) * duration
-                    inconsistencies["spectral_anomalies"].append({
-                        "timestamp": float(start_time),
-                        "severity": float(np.random.uniform(0.5, 1.0)),
-                        "type": "frequency_artifacts"
-                    })
-            
-            return inconsistencies
-        
+                # Index 0 = Real, Index 1 = Fake
+                real_score = probs[0][0].item()
+                fake_score = probs[0][1].item()
+                
+                # F. DECISION LOGIC
+                if fake_score > 0.50:
+                    label = "FAKE"
+                    confidence = fake_score
+                else:
+                    label = "REAL"
+                    confidence = real_score
+
+            # G. SUCCESS RESPONSE
+            return {
+                "status": "success",
+                "filename": os.path.basename(file_path),
+                "label": label, 
+                "confidence": round(confidence * 100, 2),
+                "detailed_scores": {
+                    "real_prob": round(real_score, 4),
+                    "fake_prob": round(fake_score, 4)
+                },
+                "meta": {
+                    "duration_analyzed": len(audio)/16000,
+                    "device_used": self.device
+                }
+            }
+
         except Exception as e:
-            logger.error(f"Inconsistency detection error: {str(e)}")
-            return None
+            print(f"⚠️ Error during scan: {str(e)}")
+            return {
+                "status": "error", 
+                "message": f"Analysis failed: {str(e)}"
+            }
+
+# --- SELF-TEST BLOCK (No Internet Needed) ---
+if __name__ == "__main__":
+    detector = AudioDeepfakeDetector()
+    
+    # Generate dummy noise for testing (no external file needed)
+    print("\n🧪 Running Self-Test with Dummy Audio...")
+    test_file = "temp_debug_noise.wav"
+    dummy_audio = np.random.uniform(-0.5, 0.5, 16000*3) # 3 seconds noise
+    sf.write(test_file, dummy_audio, 16000)
+    
+    result = detector.analyze_audio(test_file)
+    print("\nAPI Response Output:")
+    print(result)
+    
+    if os.path.exists(test_file):
+        os.remove(test_file)

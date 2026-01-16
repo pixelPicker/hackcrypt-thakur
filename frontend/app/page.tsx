@@ -33,12 +33,14 @@ export default function Home() {
   };
 
   return (
-    <div className="relative 
+    <div
+      className="relative 
 
-">
+"
+    >
       {/* Animated background gradients */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* <motion.div
+        <motion.div
           animate={{
             scale: [1, 1.2, 1],
             opacity: [0.12, 0.18, 0.12],
@@ -62,8 +64,8 @@ export default function Home() {
             delay: 1,
           }}
           className="absolute right-[15%] top-[20%] h-96 w-96 rounded-full bg-red-500/20 blur-3xl"
-        /> */}
-        {/* <motion.div
+        />
+        <motion.div
           animate={{
             scale: [1, 1.25, 1],
             opacity: [0.1, 0.15, 0.1],
@@ -75,13 +77,13 @@ export default function Home() {
             delay: 2,
           }}
           className="absolute bottom-[10%] left-[50%] h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl"
-        /> */}
+        />
       </div>
 
       <main className="mx-auto w-full max-w-7xl px-5  h-screen max-h-screen ">
         <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center max-h-screen h-screen">
           <section className="space-y-6 mt-20">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-3 py-1 text-xs text-muted-foreground">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-5 py-2 text-sm text-neutral-300 text-muted-foreground">
               Forensic UI • Real-time confidence • Media preview
             </div>
             <h1 className="text-6xl font-semibold tracking-tight">
@@ -90,7 +92,7 @@ export default function Home() {
 
             <motion.p
               variants={itemVariants}
-              className="max-w-xl text-sm leading-6 text-muted-foreground"
+              className="max-w-xl leading-6 text-neutral-300 text-muted-foreground"
             >
               Upload a single image, video, or audio file and receive an
               authenticity verdict, confidence score, and risk level. Results
@@ -100,41 +102,23 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-6">
               <a
                 href="/upload"
-                className="relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6  font-medium text-primary-foreground bg-primary overflow-hidden
-  transition-all duration-300
- bg-gradient-to-br from-blue-900/50 via-indigo-800/50 to-purple-900/50
-
-  shadow-[0_0_10px_rgba(99,102,241,0.5)]
-  
-  before:absolute before:inset-0 before:rounded-full
- border-1 border-white/50
-  before:opacity-75  before:animate-glow
-  before:-z-10"
+                className="relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6  font-medium text-primary-foreground bg-primary overflow-hidden transition-all duration-300 bg-linear-to-br from-blue-900/50 hover:from-blue-900/75 via-indigo-800/50 hover:via-indigo-800/75 to-purple-900/50 hover:to-purple-900/75 shadow-[0_0_10px_rgba(99,102,241,0.5)] before:absolute before:inset-0 before:rounded-full border-2 border-white/30 before:opacity-75 hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] before:animate-glow before:-z-10 text-lg"
               >
                 Start Analysis
               </a>
 
               <a
                 href="/results"
-                className="relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6  font-medium text-primary-foreground bg-primary overflow-hidden
-  transition-all duration-300
- 
-  shadow-[0_0_10px_rgba(99,102,241,0.5)]
-  
-  before:absolute before:inset-0 before:rounded-full
- 
-  before:opacity-75  before:animate-glow
-  before:-z-10"
+                className="relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6 font-medium text-primary-foreground bg-primary overflow-hidden transition-all border-2 border-white/30 duration-300 hover:bg-white/10 before:absolute before:inset-0 before:rounded-full before:opacity-75 before:animate-glow before:-z-10 text-lg text-neutral-300"
               >
                 View Last Result
               </a>
             </div>
           </section>
 
-              <section className="rounded-2xl  h-full w-124  ">
+          <section className="rounded-2xl  h-full w-124  ">
             <div className="image absolute right-8    bottom-3 h-120 ">
-              <img className="w-140" src="/main.png"
-              ></img>
+              <img className="w-140" src="/main.png"></img>
             </div>
           </section>
         </div>
