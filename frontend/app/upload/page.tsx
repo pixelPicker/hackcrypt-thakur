@@ -140,11 +140,15 @@ export default function UploadPage() {
               ) : null}
             </AnimatePresence>
 
-            <div className="flex items-center justify-end gap-3 cursor-pointer text-white">
+            <div
+              className={`flex items-center justify-end gap-3 ${
+                canAnalyze ? "cursor-pointer" : "cursor-not-allowed"
+              } text-white`}
+            >
               <Button
                 onClick={() => file && mutation.mutate(file)}
                 disabled={!canAnalyze}
-                className="text-lg rounded-xl "
+                className={`relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6 font-medium text-primary-foreground bg-primary overflow-hidden transition-all duration-300 bg-linear-to-br from-blue-900/50 hover:from-blue-900/75 via-indigo-800/50 hover:via-indigo-800/75 to-purple-900/50 hover:to-purple-900/75 shadow-[0_0_10px_rgba(99,102,241,0.5)] before:absolute before:inset-0 before:rounded-full border-2 border-white/30 before:opacity-75 hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] before:animate-glow before:-z-10 text-lg`}
                 variant="ghost"
               >
                 Analyze

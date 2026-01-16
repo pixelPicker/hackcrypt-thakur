@@ -83,19 +83,22 @@ export function Navbar({ className }: { className?: string }) {
         <nav
           className={`lg:hidden ${
             menuState ? "block" : "hidden"
-          } fixed inset-0 z-10 mr-0 justify-start pt-16 gap-2 text-sm`}
+          } fixed top-14 right-4 z-10`}
         >
-          <ul className="flex flex-col w-full h-screen bg-black">
+          <ul className="flex flex-col items-start gap-1 rounded-xl bg-black p-2 shadow-lg min-w-[180px]">
             <Link
               href="/upload"
-              className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground hover:scale-105 active:scale-95"
+              className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground"
+              onClick={() => setMenuState(false)}
             >
               <Upload className="h-4 w-4" />
               Upload
             </Link>
+
             <Link
               href="/results"
-              className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground hover:scale-105 active:scale-95"
+              className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-muted-foreground transition-all hover:bg-secondary/60 hover:text-foreground"
+              onClick={() => setMenuState(false)}
             >
               <Activity className="h-4 w-4" />
               Results
