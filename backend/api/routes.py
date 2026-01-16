@@ -52,7 +52,7 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
     start_time = time.time()
     
     try:
-        logger.info(f"Starting analysis for job {job_id}")
+        logger.info(f"Processing media for job {job_id}")
         
         processor = MediaProcessor()
         media_data = processor.process(media_url, content_type)
