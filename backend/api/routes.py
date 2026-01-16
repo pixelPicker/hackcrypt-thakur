@@ -109,6 +109,13 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
         
         processing_time = int((time.time() - start_time) * 1000)
         
+        # Convert local file path to public URL if needed
+        public_media_url = media_url
+        if media_url.startswith("file://"):
+             # Assuming temp_storage is mounted at /uploads
+             filename = media_url.split("/")[-1]
+             public_media_url = f"http://localhost:8000/uploads/{filename}"
+
         result = {
             "job_id": job_id,
             "label": label,
@@ -117,6 +124,7 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
             "modality_scores": modality_scores,
             "explainability": enhanced_explainability,
             "media_type": media_data["type"],
+            "media_url": public_media_url,
             "processing_time_ms": processing_time
         }
         

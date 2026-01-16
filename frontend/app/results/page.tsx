@@ -37,7 +37,7 @@ function ResultsContent() {
   const search = useSearchParams();
 
   const id = search.get("id") ?? "";
-  const media = search.get("media");
+  const queryMedia = search.get("media");
   const name = search.get("name") ?? "";
   const type = search.get("type") ?? "";
 
@@ -53,6 +53,9 @@ function ResultsContent() {
 
   const result = data;
   const hasResult = Boolean(result);
+
+  // Use backend Persistent URL if available, otherwise fall back to query param (blob)
+  const media = result?.media_url ?? queryMedia;
 
   const isImage = type.startsWith("image/");
   const isAudio = type.startsWith("audio/");
@@ -150,13 +153,11 @@ function ResultsContent() {
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Media snapshot</div>
                   {isImage ? (
-                    <HeatmapOverlay boxes={result?.heatmap}>
-                      <img
-                        src={media}
-                        alt={name || "uploaded"}
-                        className="h-auto w-full rounded-xl border border-border/60 object-contain"
-                      />
-                    </HeatmapOverlay>
+                    <img
+                      src={media}
+                      alt={name || "uploaded"}
+                      className="h-auto w-full rounded-xl border border-border/60 object-contain"
+                    />
                   ) : isAudio ? (
                     <audio
                       src={media}

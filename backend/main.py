@@ -21,6 +21,13 @@ app.add_middleware(
 
 app.include_router(routes.router)
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Mount static files for local storage fallback
+os.makedirs("temp_storage", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="temp_storage"), name="uploads")
+
 @app.get("/")
 async def root():
     return {"message": "Deepfake Detection API", "status": "online"}
