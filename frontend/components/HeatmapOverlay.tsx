@@ -46,16 +46,17 @@ export function HeatmapOverlay({
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.25, delay: Math.min(0.4, idx * 0.03) }}
-              className="absolute rounded-lg border-2"
+              className="absolute pointer-events-none"
               style={{
                 left,
                 top,
                 width,
                 height,
-                borderColor: `rgba(${color}, ${borderOpacity})`,
+                outline: `2px solid rgba(${color}, ${borderOpacity})`,
+                outlineOffset: "-2px",
                 backgroundColor: `rgba(${color}, ${bgOpacity})`,
                 boxShadow:
-                  b.intensity > 0.6 ? `0 0 15px rgba(${color}, 0.3)` : "none",
+                  b.intensity > 0.6 ? `0 0 12px rgba(${color}, 0.5)` : "none",
               }}
             />
           );

@@ -27,10 +27,15 @@ export function TimelineAnomalies({ timeline }: TimelineAnomaliesProps) {
   }, [timeline]);
 
   return (
-    <div className="h-56 w-full rounded-xl border border-border/60 bg-card/40 p-4">
-      <div className="mb-3 text-sm font-medium">Temporal anomaly confidence</div>
+    <div className="min-h-56 w-full rounded-xl bg-neutral-700/40 p-6">
+      <div className="mb-3 text-xl font-medium">
+        Temporal anomaly confidence
+      </div>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ left: 10, right: 10, top: 10, bottom: 0 }}>
+        <LineChart
+          data={data}
+          margin={{ left: 10, right: 10, top: 10, bottom: 0 }}
+        >
           <CartesianGrid stroke="rgba(148,163,184,0.15)" vertical={false} />
           <XAxis
             dataKey="t"
@@ -53,7 +58,10 @@ export function TimelineAnomalies({ timeline }: TimelineAnomaliesProps) {
               color: "rgba(226, 232, 240, 0.95)",
             }}
             labelFormatter={(v) => `t = ${v}`}
-            formatter={(v: any) => [`${Math.round(Number(v) * 100)}%`, "anomaly"]}
+            formatter={(v: any) => [
+              `${Math.round(Number(v) * 100)}%`,
+              "anomaly",
+            ]}
           />
           <Line
             type="monotone"

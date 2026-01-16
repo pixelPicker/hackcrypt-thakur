@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Navbar } from "@/components/Navbar";
+import clsx from "clsx";
 
 function readLastResult(): AnalysisResult | null {
   try {
@@ -64,7 +65,9 @@ function ResultsContent() {
 
   const result = data;
   const hasResult = Boolean(result);
-
+  const [activityType, setActivityType] = React.useState<"image" | "heatmap">(
+    "image",
+  );
   // Use backend Persistent URL if available, otherwise fall back to query param (blob)
   const media = result?.media_url ?? queryMedia;
 
@@ -74,362 +77,291 @@ function ResultsContent() {
   return (
     <>
       <Navbar />
-      <div className="mx-auto w-full max-w-6xl flex flex-col px-5 pt-24">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight">
-              Forensic dashboard
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {name ? name : "Uploaded media"}
-              {type ? ` • ${type}` : ""}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => router.push("/upload")}
-              className="cursor-pointer"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              New upload
-            </Button>
-            {shouldFetch ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => refetch()}
-                disabled={isFetching}
+      <div className="mx-auto w-full px-8 grid grid-cols-3 items-start gap-8 pt-24">
+        <div className="sticky top-24">
+          {isImage && (
+            <div className="flex flex-col w-full justify-between items-center gap-4">
+              <div
+                className={clsx(
+                  activityType === "image"
+                    ? "before:left-0"
+                    : "before:left-1/2",
+                  " relative grid grid-cols-2 font-medium gap-2 py-2 mb-4 rounded-lg",
+                  "before:content-[''] w-full before:w-[calc(50%-8px)] before:h-[calc(100%-8px)] before:rounded-lg before:-z-10 before:m-1 before:bg-neutral-400 before:absolute before:top-0 before:transition-all",
+                )}
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </Button>
-            ) : null}
-          </div>
-        </div>
-
-        <AnimatePresence initial={false}>
-          {isFetching ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              className="mb-6 rounded-xl border border-border/60 bg-card/40 p-4"
-            >
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Database className="h-4 w-4 animate-pulse" />
-                Fetching result from backend…
+                <button
+                  className={clsx(
+                    "text-center py-2 px-8 rounded-lg cursor-pointer transition",
+                    activityType === "image" ? "text-black" : "text-white",
+                  )}
+                  onClick={() => setActivityType("image")}
+                >
+                  <div></div>
+                  Image
+                </button>
+                <button
+                  className={clsx(
+                    "text-center py-2 px-8 rounded-lg cursor-pointer transition",
+                    activityType === "heatmap" ? "text-black" : "text-white",
+                  )}
+                  onClick={() => setActivityType("heatmap")}
+                >
+                  Heatmap
+                </button>
               </div>
-            </motion.div>
+            </div>
+          )}
+          {media ? (
+            <div className="space-y-2 max-h-60">
+              {isImage ? (
+                activityType === "image" ? (
+                  <img
+                    src={media}
+                    alt={name || "uploaded"}
+                    className="h-auto w-full rounded-xl border border-border/60 object-contain"
+                  />
+                ) : result?.heatmap && result.heatmap.length > 0 && isImage ? (
+                  media ? (
+                    <div className="rounded-xl border border-border/60 overflow-hidden bg-black/5 relative">
+                      <HeatmapOverlay
+                        boxes={result.heatmap}
+                        className="w-full h-full"
+                      >
+                        <img
+                          src={media}
+                          alt="Heatmap Analysis"
+                          className="w-full h-auto object-contain"
+                        />
+                      </HeatmapOverlay>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground text-yellow-500">
+                      Heatmap data is available, but the media snapshot has
+                      expired. Please re-upload the file to view the overlay.
+                    </div>
+                  )
+                ) : (
+                  <div className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
+                    {(result?.heatmap?.length ?? 0) > 0 && !isImage
+                      ? "Heatmaps are only available for image analysis."
+                      : "No heatmap regions detected."}
+                  </div>
+                )
+              ) : isAudio ? (
+                <audio
+                  src={media}
+                  controls
+                  className="w-full rounded-xl border border-border/60"
+                />
+              ) : (
+                <video
+                  src={media}
+                  controls
+                  className="w-full rounded-xl border border-border/60"
+                />
+              )}
+            </div>
           ) : null}
-        </AnimatePresence>
+        </div>
+        {hasResult && result ? (
+          <div className="mb-6 col-span-2 w-full space-y-8">
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-4xl font-semibold tracking-tight">
+                  Forensic dashboard
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {name ? name : "Uploaded media"}
+                  {type ? ` • ${type}` : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => router.push("/upload")}
+                  className="cursor-pointer"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  New upload
+                </Button>
+                {shouldFetch ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+                    />
+                    Refresh
+                  </Button>
+                ) : null}
+              </div>
+            </div>
 
-        {!hasResult ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>No result loaded</CardTitle>
-              <CardDescription>
-                Upload media to generate a new analysis.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                type="button"
-                className="cursor-pointer"
-                variant={"outline"}
-                onClick={() => router.push("/upload")}
-              >
-                Go to Upload
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <Card>
-              <CardHeader>
-                <CardTitle>Verdict</CardTitle>
-                <CardDescription>
-                  Label, confidence, and risk scoring
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center space-y-4 rounded-xl p-4">
                 <ConfidenceScore
                   label={result?.label ?? "Authentic"}
                   confidence={result?.confidence_score ?? 0}
                   riskLevel={result?.risk_level ?? "Medium"}
                 />
+              </div>
 
-                {media ? (
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Media snapshot</div>
-                    {isImage ? (
-                      <img
-                        src={media}
-                        alt={name || "uploaded"}
-                        className="h-auto w-full rounded-xl border border-border/60 object-contain"
-                      />
-                    ) : isAudio ? (
-                      <audio
-                        src={media}
-                        controls
-                        className="w-full rounded-xl border border-border/60"
-                      />
-                    ) : (
-                      <video
-                        src={media}
-                        controls
-                        className="w-full rounded-xl border border-border/60"
-                      />
-                    )}
-                  </div>
-                ) : null}
-
-                {/* Modality Scores Breakdown */}
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Detection Breakdown</div>
-                  <div className="rounded-xl border border-border/60 bg-card/40 p-4 space-y-3">
-                    {result?.modality_scores?.vision !== undefined && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Visual Analysis</span>
-                          <span className="font-medium tabular-nums">
-                            {(result.modality_scores.vision * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <Progress value={result.modality_scores.vision * 100} />
-                      </div>
-                    )}
-
-                    {result?.modality_scores?.audio !== undefined && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Audio Analysis</span>
-                          <span className="font-medium tabular-nums">
-                            {(result.modality_scores.audio * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <Progress value={result.modality_scores.audio * 100} />
-                      </div>
-                    )}
-
-                    {result?.modality_scores?.temporal !== undefined && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Temporal Analysis</span>
-                          <span className="font-medium tabular-nums">
-                            {(result.modality_scores.temporal * 100).toFixed(1)}
-                            %
-                          </span>
-                        </div>
-                        <Progress
-                          value={result.modality_scores.temporal * 100}
-                        />
-                      </div>
-                    )}
-
-                    {result?.modality_scores?.lipsync !== undefined && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Lip-sync Analysis</span>
-                          <span className="font-medium tabular-nums">
-                            {(result.modality_scores.lipsync * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <Progress
-                          value={result.modality_scores.lipsync * 100}
-                        />
-                      </div>
-                    )}
-
-                    {result?.modality_scores?.metadata !== undefined && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Metadata Analysis</span>
-                          <span className="font-medium tabular-nums">
-                            {(result.modality_scores.metadata * 100).toFixed(1)}
-                            %
-                          </span>
-                        </div>
-                        <Progress
-                          value={result.modality_scores.metadata * 100}
-                        />
-                      </div>
-                    )}
-
-                    <div className="border-t pt-3 mt-3">
-                      <div className="text-xs text-muted-foreground">
-                        Combined score from all detection modalities
-                      </div>
+              <div className="grid grid-cols-2 gap-4">
+                {result.modality_scores && result.modality_scores.vision && (
+                  <div className="border-2 border-neutral-700/50 bg-linear-to-tr from-neutral-800/50 to-neutral-700/50 rounded-xl space-y-1 p-4 pt-6 flex flex-col">
+                    <p className="text-4xl text-right font-medium flex-1">
+                      {result.modality_scores.vision.toFixed(1)}%
+                    </p>
+                    <div>
+                      <h3 className="text-xl">Visual Frame Analysis</h3>
+                      <p className="text-sm line-clamp-2">
+                        Deep learning-based frame manipulation detection
+                      </p>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Signals</CardTitle>
-                <CardDescription>
-                  Localization and temporal anomaly indicators
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs
-                  defaultValue={
-                    isImage && result?.heatmap?.length ? "heatmap" : "timeline"
-                  }
-                  className="w-full"
-                  key={id}
-                >
-                  <TabsList className="w-full justify-start border-b rounded-none h-12 bg-transparent p-0">
-                    <TabsTrigger
-                      value="timeline"
-                      className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12"
-                    >
-                      Timeline
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="heatmap"
-                      className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12"
-                    >
-                      Heatmap
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="detailed"
-                      className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12"
-                    >
-                      Detailed Analysis
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="raw"
-                      className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12 ml-auto"
-                    >
-                      Raw Data
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="timeline">
-                    {result?.timeline && result.timeline.length > 0 ? (
-                      <TimelineAnomalies timeline={result.timeline} />
-                    ) : (
-                      <div className="py-8 text-center text-sm text-muted-foreground">
-                        No temporal anomalies detected.
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="heatmap">
-                    {result?.heatmap && result.heatmap.length > 0 && isImage ? (
-                      media ? (
-                        <div className="rounded-xl border border-border/60 overflow-hidden bg-black/5 relative">
-                          <HeatmapOverlay
-                            boxes={result.heatmap}
-                            className="w-full h-full"
-                          >
-                            <img
-                              src={media}
-                              alt="Heatmap Analysis"
-                              className="w-full h-auto object-contain"
-                            />
-                          </HeatmapOverlay>
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground text-yellow-500">
-                          Heatmap data is available, but the media snapshot has
-                          expired. Please re-upload the file to view the
-                          overlay.
-                        </div>
-                      )
-                    ) : (
-                      <div className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
-                        {(result?.heatmap?.length ?? 0) > 0 && !isImage
-                          ? "Heatmaps are only available for image analysis."
-                          : "No heatmap regions detected."}
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="detailed">
-                    <div className="space-y-4">
-                      {result?.modality_scores?.vision !== undefined && (
-                        <ModalityCard
-                          title="Visual Frame Analysis"
-                          score={result.modality_scores.vision}
-                          icon={<Eye size={20} />}
-                          description="Deep learning-based frame manipulation detection"
-                          details={
-                            result?.explainability?.vision_details as
-                              | Record<string, any>
-                              | undefined
-                          }
-                        />
-                      )}
-
-                      {result?.modality_scores?.audio !== undefined && (
-                        <ModalityCard
-                          title="Audio Deepfake Detection"
-                          score={result.modality_scores.audio}
-                          icon={<Volume2 size={20} />}
-                          description="Spectral analysis and AI-based voice synthesis detection"
-                          details={
-                            result?.explainability?.audio_metrics as
-                              | Record<string, any>
-                              | undefined
-                          }
-                        />
-                      )}
-
-                      {result?.modality_scores?.temporal !== undefined && (
-                        <ModalityCard
-                          title="Temporal Consistency"
-                          score={result.modality_scores.temporal}
-                          icon={<Clock size={20} />}
-                          description="Frame-to-frame transition and motion pattern analysis"
-                          details={
-                            result?.explainability?.temporal_details as
-                              | Record<string, any>
-                              | undefined
-                          }
-                        />
-                      )}
-
-                      {result?.modality_scores?.lipsync !== undefined && (
-                        <ModalityCard
-                          title="Lip-sync Verification"
-                          score={result.modality_scores.lipsync}
-                          icon={<Mic size={20} />}
-                          description="Audio-visual synchronization correlation analysis"
-                          details={
-                            result?.explainability?.lipsync_details as
-                              | Record<string, any>
-                              | undefined
-                          }
-                        />
-                      )}
-
-                      {!result?.modality_scores ||
-                        (Object.keys(result.modality_scores).length === 0 && (
-                          <div className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
-                            No detailed modality scores available.
-                          </div>
-                        ))}
+                {result.modality_scores && (
+                  <div className="border-2 border-neutral-700/50 bg-linear-to-tr from-neutral-800/50 to-neutral-700/50 rounded-xl space-y-4 p-4 pt-6 flex flex-col">
+                    <p className="text-4xl text-right font-medium flex-1">
+                      {result.modality_scores.audio?.toFixed(1) ?? 0}%
+                    </p>
+                    <div>
+                      <h3 className="text-xl">Audio Deepfake Detection</h3>
+                      <p className="text-sm line-clamp-2">
+                        Spectral analysis and AI-based voice synthesis detection
+                      </p>
                     </div>
-                  </TabsContent>
+                  </div>
+                )}
 
-                  <TabsContent value="raw">
+                {result.modality_scores && (
+                  <div className="border-2 border-neutral-700/50 bg-linear-to-tr from-neutral-800/50 to-neutral-700/50 rounded-xl space-y-4 p-4 pt-6 flex flex-col">
+                    <p className="text-4xl text-right font-medium flex-1">
+                      {result.modality_scores.temporal?.toFixed(1) ?? 0}%
+                    </p>
+                    <div>
+                      <h3 className="text-xl">Temporal Consistency</h3>
+                      <p className="text-sm line-clamp-2">
+                        Frame-to-frame transition and motion pattern analysis
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {result.modality_scores && (
+                  <div className="border-2 border-neutral-700/50 bg-linear-to-tr from-neutral-800/50 to-neutral-700/50 rounded-xl space-y-4 p-4 pt-6 flex flex-col">
+                    <p className="text-4xl text-right font-medium flex-1">
+                      {result.modality_scores.lipsync?.toFixed(1) ?? 0}%
+                    </p>
+                    <div>
+                      <h3 className="text-xl">Lip-sync Verification</h3>
+                      <p className="text-sm line-clamp-2">
+                        Audio-visual synchronization correlation analysis{" "}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {result?.timeline && result.timeline.length > 0 ? (
+              <TimelineAnomalies timeline={result.timeline} />
+            ) : null}
+
+            {/* <TabsContent value="raw">
                     <pre className="max-h-[360px] overflow-auto rounded-xl border border-border/60 bg-card/40 p-4 text-xs text-muted-foreground">
                       {JSON.stringify(result, null, 2)}
                     </pre>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+                  </TabsContent> */}
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Detection Breakdown</div>
+              <div className="rounded-xl py-6">
+                {result?.modality_scores?.vision !== undefined && (
+                  <div>
+                    <div className="flex items-center bg-neutral-700/50 p-3 justify-between text-sm">
+                      <span>Visual Analysis</span>
+                      <span className="font-medium tabular-nums">
+                        {(result.modality_scores.vision * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={result.modality_scores.vision * 100} />
+                  </div>
+                )}
+
+                {result?.modality_scores?.audio !== undefined && (
+                  <div className="">
+                    <div className="flex items-center justify-between p-3 text-sm">
+                      <span>Audio Analysis</span>
+                      <span className="font-medium tabular-nums">
+                        {(result.modality_scores.audio * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={result.modality_scores.audio * 100} />
+                  </div>
+                )}
+
+                {result?.modality_scores?.temporal !== undefined && (
+                  <div className="">
+                    <div className="flex items-center justify-between bg-neutral-700/50 p-3 text-sm">
+                      <span>Temporal Analysis</span>
+                      <span className="font-medium tabular-nums">
+                        {(result.modality_scores.temporal * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={result.modality_scores.temporal * 100} />
+                  </div>
+                )}
+
+                {result?.modality_scores?.lipsync !== undefined && (
+                  <div className="">
+                    <div className="flex items-center p-3 justify-between text-sm">
+                      <span>Lip-sync Analysis</span>
+                      <span className="font-medium tabular-nums">
+                        {(result.modality_scores.lipsync * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={result.modality_scores.lipsync * 100} />
+                  </div>
+                )}
+
+                {result?.modality_scores?.metadata !== undefined && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between bg-neutral-700/50 p-3 text-sm">
+                      <span>Metadata Analysis</span>
+                      <span className="font-medium tabular-nums">
+                        {(result.modality_scores.metadata * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress value={result.modality_scores.metadata * 100} />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+        ) : (
+          <AnimatePresence initial={false}>
+            {isFetching ? (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="mb-6 rounded-xl border border-border/60 bg-card/40 p-4"
+              >
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Database className="h-4 w-4 animate-pulse" />
+                  Fetching result from backend…
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         )}
       </div>
     </>
