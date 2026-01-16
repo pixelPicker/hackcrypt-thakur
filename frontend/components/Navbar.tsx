@@ -8,26 +8,20 @@ import { cn } from "@/lib/utils";
 
 export function Navbar({ className }: { className?: string }) {
   return (
-    <motion.header
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+    <header
+      
       className={cn(
-        "sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl",
+        "fixed w-full top-0 z-50 border-b border-gray-400/60 bg-background/80 backdrop-blur",
         className
       )}
     >
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3">
-        <Link href="/" className="group flex items-center gap-2">
-          <motion.div
-            whileHover={{ rotate: 360 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-card/60 backdrop-blur-sm transition-colors group-hover:border-primary/50"
-          >
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 bg-card/60">
             <ShieldCheck className="h-5 w-5" />
-          </motion.div>
+          </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-wide text-foreground transition-colors">
+            <div className="text-xl font-semibold tracking-wide text-foreground">
               Deepfake Detection
             </div>
             <div className="text-xs text-muted-foreground">
@@ -53,6 +47,6 @@ export function Navbar({ className }: { className?: string }) {
           </Link>
         </nav>
       </div>
-    </motion.header>
+    </header>
   );
 }

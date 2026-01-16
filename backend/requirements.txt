@@ -4,8 +4,13 @@ celery
 redis
 psycopg2-binary
 minio
+sqlalchemy
+alembic
+python-multipart
+pydantic
+pydantic-settings
 
-torch==2.2.0
+torch
 torchvision
 timm
 opencv-python
@@ -21,4 +26,4 @@ hachoir
 numpy
 scikit-learn
 loguru
-python-multipart
+Pillow

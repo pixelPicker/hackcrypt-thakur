@@ -33,10 +33,12 @@ export default function Home() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative 
+
+">
       {/* Animated background gradients */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <motion.div
+        {/* <motion.div
           animate={{
             scale: [1, 1.2, 1],
             opacity: [0.12, 0.18, 0.12],
@@ -60,8 +62,8 @@ export default function Home() {
             delay: 1,
           }}
           className="absolute right-[15%] top-[20%] h-96 w-96 rounded-full bg-red-500/20 blur-3xl"
-        />
-        <motion.div
+        /> */}
+        {/* <motion.div
           animate={{
             scale: [1, 1.25, 1],
             opacity: [0.1, 0.15, 0.1],
@@ -73,29 +75,18 @@ export default function Home() {
             delay: 2,
           }}
           className="absolute bottom-[10%] left-[50%] h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl"
-        />
+        /> */}
       </div>
 
-      <main className="relative mx-auto w-full max-w-6xl px-5 py-14">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center"
-        >
-          <section className="space-y-6">
-            <motion.div variants={itemVariants}>
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
-                Forensic UI • Real-time confidence • Media preview
-              </div>
-            </motion.div>
-
-            <motion.h1
-              variants={itemVariants}
-              className="text-4xl font-semibold tracking-tight"
-            >
+      <main className="mx-auto w-full max-w-7xl px-5  h-screen max-h-screen ">
+        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center max-h-screen h-screen">
+          <section className="space-y-6 mt-20">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-3 py-1 text-xs text-muted-foreground">
+              Forensic UI • Real-time confidence • Media preview
+            </div>
+            <h1 className="text-6xl font-semibold tracking-tight">
               Deepfake Detection and Media Authenticity Analyzer
-            </motion.h1>
+            </h1>
 
             <motion.p
               variants={itemVariants}
@@ -106,68 +97,47 @@ export default function Home() {
               are rendered with forensic widgets for rapid review.
             </motion.p>
 
-            <motion.div
-              variants={itemVariants}
-              className="flex flex-wrap items-center gap-3"
-            >
-              <motion.a
+            <div className="flex flex-wrap items-center gap-6">
+              <a
                 href="/upload"
-                whileHover={{
-                  scale: 1.05,
-                  boxShadow: "0 10px 30px rgba(102, 126, 234, 0.3)",
-                }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
+                className="relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6  font-medium text-primary-foreground bg-primary overflow-hidden
+  transition-all duration-300
+ bg-gradient-to-br from-blue-900/50 via-indigo-800/50 to-purple-900/50
+
+  shadow-[0_0_10px_rgba(99,102,241,0.5)]
+  
+  before:absolute before:inset-0 before:rounded-full
+ border-1 border-white/50
+  before:opacity-75  before:animate-glow
+  before:-z-10"
               >
                 Start Analysis
-              </motion.a>
-              <motion.a
+              </a>
+
+              <a
                 href="/results"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
-                className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-transparent px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="relative inline-flex h-10 items-center justify-center rounded-full px-8 py-6  font-medium text-primary-foreground bg-primary overflow-hidden
+  transition-all duration-300
+ 
+  shadow-[0_0_10px_rgba(99,102,241,0.5)]
+  
+  before:absolute before:inset-0 before:rounded-full
+ 
+  before:opacity-75  before:animate-glow
+  before:-z-10"
               >
                 View Last Result
-              </motion.a>
-            </motion.div>
+              </a>
+            </div>
           </section>
 
-          <motion.section
-            variants={cardVariants}
-            whileHover={{ y: -5, boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)" }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            className="rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur-sm"
-          >
-            <div className="text-sm font-medium">Core outputs</div>
-            <motion.div
-              variants={containerVariants}
-              className="mt-4 grid gap-3"
-            >
-              {[
-                { label: "Label", value: "Authentic / Manipulated" },
-                { label: "Confidence", value: "0–100%" },
-                { label: "Risk level", value: "Low / Medium / High" },
-              ].map((item, index) => (
-                <motion.div
-                  key={item.label}
-                  variants={itemVariants}
-                  whileHover={{
-                    scale: 1.02,
-                    borderColor: "hsl(var(--primary))",
-                  }}
-                  className="rounded-xl border border-border/60 bg-background/20 p-4 transition-all"
-                >
-                  <div className="text-xs text-muted-foreground">
-                    {item.label}
-                  </div>
-                  <div className="mt-1 text-base font-semibold">
-                    {item.value}
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.section>
-        </motion.div>
+              <section className="rounded-2xl  h-full w-124  ">
+            <div className="image absolute right-8    bottom-3 h-120 ">
+              <img className="w-140" src="/main.png"
+              ></img>
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   );
