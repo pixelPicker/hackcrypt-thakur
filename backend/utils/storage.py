@@ -22,22 +22,14 @@ def get_client():
             region_name=AWS_REGION,
         )
         try:
-            _client.head_bucket(Bucket=AWS_S3_BUCKET)
-        except ClientError:
-            try:
-                if AWS_REGION == "us-east-1":
-                    _client.create_bucket(Bucket=AWS_S3_BUCKET)
-                else:
-                    _client.create_bucket(
-                        Bucket=AWS_S3_BUCKET,
-                        CreateBucketConfiguration={"LocationConstraint": AWS_REGION}
-                    )
-                logger.info(f"Created bucket: {AWS_S3_BUCKET}")
-            except Exception as e:
-                logger.warning(f"S3 bucket check/create failed: {str(e)}")
-        except BotoCoreError as e:
-            logger.warning(f"S3 not available: {str(e)}")
-    
+          _client.head_bucket(Bucket=AWS_S3_BUCKET)
+        except ClientError as e:
+          logger.error(
+          f"S3 bucket '{AWS_S3_BUCKET}' not accessible. "
+          f"Create it manually or fix IAM permissions."
+          )
+          raise
+
     return _client
 
 def _parse_s3_url(url: str) -> tuple[str, str]:
