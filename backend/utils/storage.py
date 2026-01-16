@@ -5,6 +5,9 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 from utils.logger import logger
+import dotenv
+
+dotenv.load_dotenv()
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 AWS_S3_BUCKET = os.getenv("AWS_S3_BUCKET", "deepfake-media")
