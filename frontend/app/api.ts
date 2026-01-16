@@ -108,8 +108,8 @@ export function normalizeAnalysisResult(raw: any): AnalysisResult {
   const confidenceRaw = raw?.confidence_score ?? raw?.confidence ?? raw?.prediction?.confidence ?? raw?.score ?? raw?.probability;
   const riskRaw = raw?.riskLevel ?? raw?.risk_level ?? raw?.risk;
 
-  const timelineRaw = raw?.timeline ?? raw?.anomalies_timeline ?? raw?.anomalies ?? raw?.series;
-  const heatmapRaw = raw?.heatmap ?? raw?.localization ?? raw?.regions;
+  const timelineRaw = raw?.timeline ?? raw?.anomalies_timeline ?? raw?.explainability?.anomalies_timeline ?? raw?.anomalies ?? raw?.series;
+  const heatmapRaw = raw?.heatmap ?? raw?.explainability?.heatmap ?? raw?.localization ?? raw?.regions;
 
   return {
     job_id: id || "local",

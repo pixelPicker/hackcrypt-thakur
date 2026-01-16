@@ -243,21 +243,32 @@ function ResultsContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="timeline" className="w-full">
-                <TabsList>
+              <Tabs
+                defaultValue={
+                  isImage && result?.heatmap?.length ? "heatmap" : "timeline"
+                }
+                className="w-full"
+                key={id}
+              >
+                <TabsList className="w-full justify-start border-b rounded-none h-12 bg-transparent p-0">
                   <TabsTrigger
                     value="timeline"
-                    disabled={!result?.timeline?.length}
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12"
                   >
                     Timeline
                   </TabsTrigger>
                   <TabsTrigger
                     value="heatmap"
-                    disabled={!result?.heatmap?.length}
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12"
                   >
                     Heatmap
                   </TabsTrigger>
-                  <TabsTrigger value="raw">Raw</TabsTrigger>
+                  <TabsTrigger
+                    value="raw"
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-4 py-2 h-12 ml-auto"
+                  >
+                    Raw Data
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="timeline">
@@ -271,11 +282,33 @@ function ResultsContent() {
                 </TabsContent>
 
                 <TabsContent value="heatmap">
-                  <div className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-                    {(result?.heatmap?.length ?? 0) > 0
-                      ? "Heatmap overlays are displayed on image snapshots when available."
-                      : "No heatmap regions provided by backend."}
-                  </div>
+                  {result?.heatmap && result.heatmap.length > 0 && isImage ? (
+                    media ? (
+                      <div className="rounded-xl border border-border/60 overflow-hidden bg-black/5 relative">
+                        <HeatmapOverlay
+                          boxes={result.heatmap}
+                          className="w-full h-full"
+                        >
+                          <img
+                            src={media}
+                            alt="Heatmap Analysis"
+                            className="w-full h-auto object-contain"
+                          />
+                        </HeatmapOverlay>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground text-yellow-500">
+                        Heatmap data is available, but the media snapshot has
+                        expired. Please re-upload the file to view the overlay.
+                      </div>
+                    )
+                  ) : (
+                    <div className="rounded-xl border border-border/60 bg-card/40 p-8 text-center text-sm text-muted-foreground">
+                      {(result?.heatmap?.length ?? 0) > 0 && !isImage
+                        ? "Heatmaps are only available for image analysis."
+                        : "No heatmap regions detected."}
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="raw">
