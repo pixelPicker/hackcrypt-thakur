@@ -34,8 +34,8 @@ class AudioDeepfakeDetector:
         os.makedirs(self.model_cache_dir, exist_ok=True)
 
         try:
-            # Use a lightweight pre-trained model from HuggingFace
-            model_name = "facebook/wav2vec2-large-xlsr-53"
+            # Use a specialized Deepfake Detection model
+            model_name = "MelodyMachine/Deepfake-audio-detection"
             print(f"📂 Loading Audio Model from HuggingFace: {model_name}")
             print(f"💾 Cache directory: {self.model_cache_dir}")
             
@@ -46,8 +46,7 @@ class AudioDeepfakeDetector:
             )
             self.model = Wav2Vec2ForSequenceClassification.from_pretrained(
                 model_name,
-                num_labels=2,  # Binary classification: Real vs Fake
-                ignore_mismatched_sizes=True,  # Allow adapting the model
+                num_labels=2,
                 cache_dir=self.model_cache_dir
             ).to(self.device)
             self.model.eval()
@@ -65,7 +64,6 @@ class AudioDeepfakeDetector:
             
             # --- 🛡️ LAYER 1: SPECTRAL FLUX (Transition Analysis) ---
             # AI often has "perfect" transitions between phonemes. Humans are messy.
-            # Spectral flux measures how quickly the power spectrum changes.
             onset_env = librosa.onset.onset_strength(y=y, sr=sr)
             flux_mean = np.mean(onset_env)
             # High flux variance = Natural speech. Low/Constant flux = AI generation.
@@ -73,34 +71,34 @@ class AudioDeepfakeDetector:
 
             # --- 🛡️ LAYER 2: CHROMA CENS (Tonal Constancy) ---
             # AI voices often have a very "locked" pitch texture. 
-            # We measure the energy in 12 different pitch classes.
             chroma = librosa.feature.chroma_cens(y=y, sr=sr)
             chroma_std = np.std(chroma)
             # AI is often "too stable" (Low std dev).
             tonal_risk = 1.0 if chroma_std < 0.25 else 0.0
 
-            # --- 🛡️ LAYER 3: THE AI MODEL (Wav2Vec2) ---
+            # --- 🛡️ LAYER 3: THE AI MODEL (MelodyMachine) ---
             if self.model is not None and self.feature_extractor is not None:
                 inputs = self.feature_extractor(y, sampling_rate=16000, return_tensors="pt", padding=True)
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 
                 with torch.no_grad():
                     logits = self.model(**inputs).logits
-                    ai_fake_score = F.softmax(logits, dim=-1)[0][1].item()
+                    probs = F.softmax(logits, dim=-1)
+                    # Label 0: Real, Label 1: Fake (Standard for this model)
+                    ai_fake_score = probs[0][1].item()
 
-                # --- 🚀 THE "VETO" LOGIC ---
-                # If BOTH Layer 1 and Layer 2 say it's fake, we override a weak AI score.
-                # This is much more accurate than a simple average.
-                if flux_risk + tonal_risk >= 1.5:
-                    # The physical signals are suspicious
-                    final_score = max(ai_fake_score, 0.85) 
-                else:
-                    # Trust the AI model but dampen it if it's unsure
-                    final_score = ai_fake_score
+                # --- 🚀 COMBINATION LOGIC ---
+                # We trust the specialized model primarily.
+                # Heuristics act as a "soft" penalty or boost, not a veto.
+                
+                heuristic_score = (flux_risk + tonal_risk) / 2.0
+                
+                # Weighted average: 70% Model, 30% Heuristics
+                final_score = (ai_fake_score * 0.7) + (heuristic_score * 0.3)
+                
             else:
                 # Fallback mode: Use only heuristic analysis
                 print("⚠️ AI model not available, using heuristic analysis only")
-                # Average the heuristic scores
                 final_score = (flux_risk + tonal_risk) / 2.0
                 ai_fake_score = final_score
 
@@ -112,7 +110,7 @@ class AudioDeepfakeDetector:
                     "rhythm_fluidity": "Natural" if flux_mean > 1.2 else "Stiff/AI",
                     "tonal_consistency": "High (Suspect)" if chroma_std < 0.25 else "Normal",
                     "raw_ai_score": round(ai_fake_score, 3),
-                    "mode": "AI+Heuristic" if self.model else "Heuristic Only"
+                    "mode": "MelodyMachine(FineTuned)+Heuristic" if self.model else "Heuristic Only"
                 }
             }
 

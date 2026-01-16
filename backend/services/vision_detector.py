@@ -1,6 +1,5 @@
 import os
 import torch
-import torch.nn as nn
 from transformers import ViTForImageClassification, ViTImageProcessor
 from PIL import Image
 import cv2
@@ -15,6 +14,20 @@ class VisionDetector:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = None
         self.processor = None
+        
+        try:
+            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            self.face_cascade = cv2.CascadeClassifier(cascade_path)
+            
+            if self.face_cascade.empty():
+                logger.error("Could not load Haar Cascade. Face detection disabled.")
+                self.face_cascade = None
+            else:
+                logger.info("Initialized OpenCV Haar Cascade for face detection")
+        except Exception as e:
+            logger.error(f"Error initializing face detector: {e}")
+            self.face_cascade = None
+
         self._load_model()
         logger.info(f"VisionDetector initialized on {self.device}")
     
@@ -26,9 +39,9 @@ class VisionDetector:
             model_cache_dir = os.path.join(project_root, "models", "pretrained")
             os.makedirs(model_cache_dir, exist_ok=True)
             
-            model_name = "prithivMLmods/Deep-Fake-Detector-v2-Model"
+            # Switch to a more robust model
+            model_name = "dima806/deepfake_vs_real_image_detection"
             logger.info(f"Loading pretrained model: {model_name}")
-            logger.info(f"Cache directory: {model_cache_dir}")
             
             self.model = ViTForImageClassification.from_pretrained(
                 model_name,
@@ -46,7 +59,6 @@ class VisionDetector:
         
         except Exception as e:
             logger.error(f"Model loading error: {str(e)}")
-            logger.warning("Falling back to random initialization")
             self.model = None
             self.processor = None
     
@@ -64,15 +76,21 @@ class VisionDetector:
             pil_image = Image.fromarray(image_rgb)
             
             if self.model is None or self.processor is None:
-                logger.warning("Model not loaded, returning default score")
-                return {
-                    "score": 0.5,
-                    "label": "unknown",
-                    "heatmap": self._generate_default_heatmap(image.shape),
-                    "regions": []
-                }
+                return {"score": 0.5, "label": "error", "heatmap": None, "regions": []}
             
-            inputs = self.processor(images=pil_image, return_tensors="pt")
+            # --- FACE EXTRACTION LOGIC ---
+            face_crop = self._crop_face(image_rgb)
+            
+            if face_crop is not None:
+                logger.info("Face detected! Analyzing face crop.")
+                target_image = Image.fromarray(face_crop)
+                analysis_mode = "face"
+            else:
+                logger.info("No face detected. Analyzing full image.")
+                target_image = pil_image
+                analysis_mode = "full"
+
+            inputs = self.processor(images=target_image, return_tensors="pt")
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             with torch.no_grad():
@@ -81,28 +99,43 @@ class VisionDetector:
                 probabilities = torch.softmax(logits, dim=1)
                 predicted_class = torch.argmax(logits, dim=1).item()
             
-            label = self.model.config.id2label.get(predicted_class, "unknown")
+            # Get label mapping from model config
+            label_map = self.model.config.id2label
             
+            # Find which index corresponds to "Fake" or "Real"
             fake_idx = None
-            for idx, lbl in self.model.config.id2label.items():
-                if "fake" in lbl.lower() or "manipulated" in lbl.lower():
+            real_idx = None
+            
+            for idx, label_text in label_map.items():
+                label_lower = label_text.lower()
+                if "fake" in label_lower or "manipulated" in label_lower or "synthetic" in label_lower:
                     fake_idx = idx
-                    break
+                elif "real" in label_lower or "authentic" in label_lower or "genuine" in label_lower:
+                    real_idx = idx
             
+            # Calculate fake probability
             if fake_idx is not None:
-                manipulated_score = probabilities[0][fake_idx].item()
+                # Direct mapping found
+                fake_prob = probabilities[0][fake_idx].item()
+                logger.info(f"Using fake_idx={fake_idx}, fake_prob={fake_prob:.4f}")
+            elif real_idx is not None:
+                # Invert real probability
+                fake_prob = 1.0 - probabilities[0][real_idx].item()
+                logger.info(f"Using real_idx={real_idx}, inverted to fake_prob={fake_prob:.4f}")
             else:
-                manipulated_score = 1.0 - probabilities[0][0].item()
+                # Fallback: For dima806 model, Class 0=Real, Class 1=Fake
+                fake_prob = probabilities[0][1].item()
+                logger.warning(f"No label mapping found, using Class 1 as fallback: {fake_prob:.4f}")
             
-            heatmap = self._generate_heatmap(image_rgb, pil_image)
-            regions = self._detect_regions(heatmap)
+            final_label = "fake" if fake_prob > 0.5 else "real"
             
             return {
-                "score": float(manipulated_score),
-                "label": label,
-                "confidence": float(probabilities[0][predicted_class].item()),
-                "heatmap": heatmap,
-                "regions": regions
+                "score": float(fake_prob),
+                "label": final_label,
+                "confidence": float(max(fake_prob, 1.0 - fake_prob)),  # Confidence is max of both classes
+                "heatmap": None,
+                "regions": [],
+                "meta": {"mode": analysis_mode}
             }
         
         except Exception as e:
@@ -113,6 +146,47 @@ class VisionDetector:
                 "heatmap": None,
                 "regions": []
             }
+
+    def _crop_face(self, image_rgb: np.ndarray):
+        """Detects and returns the largest face crop using OpenCV Haar Cascade."""
+        if not self.face_cascade:
+            return None
+            
+        try:
+            # Convert to grayscale for face detection
+            gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+            
+            # Detect faces
+            faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            
+            if len(faces) == 0:
+                return None
+            
+            # Find largest face
+            max_area = 0
+            best_crop = None
+            h, w, _ = image_rgb.shape
+            
+            for (x, y, w_box, h_box) in faces:
+                # Add padding
+                pad_w = int(w_box * 0.2)
+                pad_h = int(h_box * 0.2)
+                
+                x1 = max(0, x - pad_w)
+                y1 = max(0, y - pad_h)
+                x2 = min(w, x + w_box + pad_w)
+                y2 = min(h, y + h_box + pad_h)
+                
+                area = (x2 - x1) * (y2 - y1)
+                if area > max_area:
+                    max_area = area
+                    best_crop = image_rgb[y1:y2, x1:x2]
+            
+            return best_crop
+                
+        except Exception as e:
+            logger.error(f"Error in face cropping: {e}")
+            return None
     
     def _detect_video(self, media_data: dict):
         """Detect deepfakes in video by processing frames on-demand"""
@@ -133,7 +207,6 @@ class VisionDetector:
             
             scores = []
             labels = []
-            heatmaps = []
             
             # Sample max 10 frames to reduce memory usage
             sample_rate = max(1, frame_count // 10)
@@ -165,10 +238,7 @@ class VisionDetector:
                     result = self._detect_image(frame)
                     scores.append(result["score"])
                     labels.append(result.get("label", "unknown"))
-                    if result["heatmap"] and len(heatmaps) == 0:
-                        heatmaps.append(result["heatmap"])
                 
-                # Explicitly delete frame to free memory
                 del frame
             
             cap.release()
@@ -181,76 +251,10 @@ class VisionDetector:
             return {
                 "score": float(avg_score),
                 "label": most_common_label,
-                "heatmap": heatmaps[0] if heatmaps else None,
+                "heatmap": None,
                 "regions": []
             }
         
         except Exception as e:
             logger.error(f"Video detection error: {str(e)}")
             return {"score": 0.5, "label": "error", "heatmap": None, "regions": []}
-    
-    def _generate_heatmap(self, image: np.ndarray, pil_image: Image.Image):
-        try:
-            h, w = image.shape[:2]
-            
-            heatmap_data = []
-            
-            grid_size = 4
-            cell_h = h // grid_size
-            cell_w = w // grid_size
-            
-            for i in range(grid_size):
-                for j in range(grid_size):
-                    x = j * cell_w / w
-                    y = i * cell_h / h
-                    
-                    intensity = np.random.uniform(0.3, 0.9)
-                    
-                    heatmap_data.append({
-                        "x": float(x),
-                        "y": float(y),
-                        "w": float(cell_w / w),
-                        "h": float(cell_h / h),
-                        "intensity": float(intensity)
-                    })
-            
-            return heatmap_data
-        
-        except Exception as e:
-            logger.error(f"Heatmap generation error: {str(e)}")
-            return None
-    
-    def _generate_default_heatmap(self, shape):
-        try:
-            h, w = shape[:2]
-            heatmap_data = []
-            grid_size = 4
-            
-            for i in range(grid_size):
-                for j in range(grid_size):
-                    heatmap_data.append({
-                        "x": float(j / grid_size),
-                        "y": float(i / grid_size),
-                        "w": float(1 / grid_size),
-                        "h": float(1 / grid_size),
-                        "intensity": 0.5
-                    })
-            
-            return heatmap_data
-        except:
-            return None
-    
-    def _detect_regions(self, heatmap):
-        if not heatmap:
-            return []
-        
-        regions = []
-        for region in heatmap:
-            if region["intensity"] > 0.7:
-                regions.append({
-                    "bbox": [region["x"], region["y"], region["w"], region["h"]],
-                    "confidence": region["intensity"],
-                    "type": "manipulation"
-                })
-        
-        return regions
