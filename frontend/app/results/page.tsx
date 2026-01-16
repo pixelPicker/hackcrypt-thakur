@@ -15,7 +15,7 @@ import {
   Mic,
 } from "lucide-react";
 
-import type { AnalysisResult } from "@/app/api";
+import type { AnalysisResult, TimelinePoint } from "@/app/api";
 import { getResult } from "@/app/api";
 import { ConfidenceScore } from "@/components/ConfidenceScore";
 import { HeatmapOverlay } from "@/components/HeatmapOverlay";
@@ -274,8 +274,15 @@ function ResultsContent() {
               </div>
             </div>
 
-            {result?.timeline && result.timeline.length > 0 ? (
-              <TimelineAnomalies timeline={result.timeline} />
+            {result.explainability &&
+            result.explainability.anomalies_timeline &&
+            (result.explainability.anomalies_timeline as TimelinePoint[])
+              .length > 0 ? (
+              <TimelineAnomalies
+                timeline={
+                  result.explainability.anomalies_timeline as TimelinePoint[]
+                }
+              />
             ) : null}
 
             {/* <TabsContent value="raw">
