@@ -109,7 +109,23 @@ class MediaProcessor:
         
         audio_data = download_from_storage(media_url)
         
-        temp_path = os.path.join(self.temp_dir, f"audio_{hashlib.md5(audio_data).hexdigest()}.wav")
+        # Check if audio_data is actually an XML error or HTML
+        if audio_data.startswith(b"<?xml") or audio_data.strip().startswith(b"<Error"):
+             logger.error(f"Invalid audio data received (looks like XML): {audio_data[:200]}")
+             raise ValueError("Download failed: Received XML response instead of audio file")
+        
+        if audio_data.strip().lower().startswith(b"<!doctype html") or audio_data.strip().lower().startswith(b"<html"):
+             logger.error(f"Invalid audio data received (looks like HTML): {audio_data[:200]}")
+             raise ValueError("Download failed: Received HTML response instead of audio file")
+        
+        import mimetypes
+        
+        ext = mimetypes.guess_extension(content_type) or ".wav"
+        if ext == ".mp3":
+             # Force librosa to use audioread for mp3 if soundfile fails
+             pass
+
+        temp_path = os.path.join(self.temp_dir, f"audio_{hashlib.md5(audio_data).hexdigest()}{ext}")
         with open(temp_path, 'wb') as f:
             f.write(audio_data)
         

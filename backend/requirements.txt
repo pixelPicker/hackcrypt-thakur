@@ -15,7 +15,7 @@ torch>=2.1.0
 torchvision>=0.16.0
 torchaudio>=2.1.0
 timm
-opencv-contrib-python==4.11.0.86
+opencv-contrib-python
 mediapipe
 librosa
 transformers
@@ -32,3 +32,5 @@ Pillow
 huggingface-hub
 soundfile
 scipy
+audioread
+pydub

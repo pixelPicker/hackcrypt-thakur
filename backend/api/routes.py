@@ -6,12 +6,13 @@ from utils.storage import upload_to_storage
 from utils.logger import logger
 from services.media_processor import MediaProcessor
 from services.vision_detector import VisionDetector
-from services.audio_detector import AudioDeepfakeDetector
+from services.audio_detector import _global_detector as audio_detector
 from services.temporal_detector import TemporalDetector
 from services.fusion_engine import FusionEngine
 from services.explainability import ExplainabilityEngine
 import uuid
 import time
+import traceback
 
 router = APIRouter()
 
@@ -34,6 +35,7 @@ async def analyze_media(file: UploadFile = File(...)):
             return AnalysisResult(**result)
         except Exception as e:
             logger.error(f"Processing error: {str(e)}")
+            logger.error(traceback.format_exc())
             job_results_cache[job_id] = {
                 "status": "error",
                 "error": str(e)
@@ -72,7 +74,7 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
         
         # --- 2. AUDIO DETECTION ---
         if media_data["type"] in ["audio", "video"]:
-            audio_detector = AudioDeepfakeDetector()
+            # Use the global singleton imported as audio_detector
             # Determine path (handles extracted audio from video or raw audio files)
             audio_path = media_data.get("audio_path") or media_data.get("video_path") or media_data.get("local_path")
             
@@ -145,6 +147,7 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
     
     except Exception as e:
         logger.error(f"Error analyzing job {job_id}: {str(e)}")
+        logger.error(traceback.format_exc())
         raise
 
 @router.get("/results/{job_id}", response_model=AnalysisResult)

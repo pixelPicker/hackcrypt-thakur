@@ -41,8 +41,7 @@ export function ModalityCard({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-primary">{icon}</div>
-            <CardTitle className="text-base font-semibold">{title}</CardTitle>
+            <CardTitle className="text-xl font-medium">{title}</CardTitle>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant={getRiskVariant(riskLevel)} className="text-xs px-2">
