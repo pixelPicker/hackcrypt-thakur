@@ -11,7 +11,10 @@ dotenv.load_dotenv()
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 AWS_S3_BUCKET = os.getenv("AWS_S3_BUCKET", "deepfake-media")
-
+AWS_S3_BASE_URL = os.getenv(
+    "AWS_S3_BASE_URL",
+    f"https://{AWS_S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com"
+)
 _client = None
 
 def get_client():
@@ -22,22 +25,14 @@ def get_client():
             region_name=AWS_REGION,
         )
         try:
-            _client.head_bucket(Bucket=AWS_S3_BUCKET)
-        except ClientError:
-            try:
-                if AWS_REGION == "us-east-1":
-                    _client.create_bucket(Bucket=AWS_S3_BUCKET)
-                else:
-                    _client.create_bucket(
-                        Bucket=AWS_S3_BUCKET,
-                        CreateBucketConfiguration={"LocationConstraint": AWS_REGION}
-                    )
-                logger.info(f"Created bucket: {AWS_S3_BUCKET}")
-            except Exception as e:
-                logger.warning(f"S3 bucket check/create failed: {str(e)}")
-        except BotoCoreError as e:
-            logger.warning(f"S3 not available: {str(e)}")
-    
+          _client.head_bucket(Bucket=AWS_S3_BUCKET)
+        except ClientError as e:
+          logger.error(
+          f"S3 bucket '{AWS_S3_BUCKET}' not accessible. "
+          f"Create it manually or fix IAM permissions."
+          )
+          raise
+
     return _client
 
 def _parse_s3_url(url: str) -> tuple[str, str]:
@@ -74,7 +69,7 @@ def upload_to_storage(data: bytes, object_name: str, content_type: str = "applic
             ContentType=content_type
         )
 
-        url = f"s3://{AWS_S3_BUCKET}/{object_name}"
+        url = f"{AWS_S3_BASE_URL}/{object_name}"
         
         logger.info(f"Uploaded {object_name} to storage")
         
