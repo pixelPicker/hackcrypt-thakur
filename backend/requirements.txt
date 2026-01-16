@@ -27,3 +27,4 @@ numpy
 scikit-learn
 loguru
 Pillow
+huggingface-hub
