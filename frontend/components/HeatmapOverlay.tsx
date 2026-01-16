@@ -12,7 +12,11 @@ export type HeatmapOverlayProps = {
   children: React.ReactNode;
 };
 
-export function HeatmapOverlay({ boxes, className, children }: HeatmapOverlayProps) {
+export function HeatmapOverlay({
+  boxes,
+  className,
+  children,
+}: HeatmapOverlayProps) {
   return (
     <div className={cn("relative", className)}>
       {children}
@@ -23,7 +27,18 @@ export function HeatmapOverlay({ boxes, className, children }: HeatmapOverlayPro
           const top = `${b.y * 100}%`;
           const width = `${b.w * 100}%`;
           const height = `${b.h * 100}%`;
-          const alpha = Math.max(0.15, Math.min(0.65, b.intensity));
+
+          // Dynamic color based on intensity
+          let color = "16, 185, 129"; // Green (Safe)
+          if (b.intensity > 0.7) {
+            color = "239, 68, 68"; // Red (High Danger)
+          } else if (b.intensity > 0.5) {
+            color = "234, 179, 8"; // Yellow (Warning)
+          }
+
+          // Use intensity directly for opacity scaling to ensure visibility
+          const bgOpacity = Math.max(0.1, b.intensity * 0.4);
+          const borderOpacity = Math.max(0.4, b.intensity);
 
           return (
             <motion.div
@@ -31,15 +46,16 @@ export function HeatmapOverlay({ boxes, className, children }: HeatmapOverlayPro
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.25, delay: Math.min(0.4, idx * 0.03) }}
-              className="absolute rounded-lg border"
+              className="absolute rounded-lg border-2"
               style={{
                 left,
                 top,
                 width,
                 height,
-                borderColor: `rgba(239, 68, 68, ${alpha + 0.15})`,
-                background: `rgba(239, 68, 68, ${alpha * 0.25})`,
-                boxShadow: `0 0 0 1px rgba(239, 68, 68, ${alpha * 0.35}), 0 0 24px rgba(239, 68, 68, ${alpha * 0.2})`,
+                borderColor: `rgba(${color}, ${borderOpacity})`,
+                backgroundColor: `rgba(${color}, ${bgOpacity})`,
+                boxShadow:
+                  b.intensity > 0.6 ? `0 0 15px rgba(${color}, 0.3)` : "none",
               }}
             />
           );

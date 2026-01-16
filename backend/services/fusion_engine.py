@@ -26,7 +26,12 @@ class FusionEngine:
             else:
                 final_score = sum(weighted_scores) / total_weight
             
-            label = "manipulated" if final_score > 0.5 else "authentic"
+            if final_score > 0.6:
+                label = "manipulated"
+            elif final_score >= 0.4:
+                label = "suspicious"
+            else:
+                label = "authentic"
             
             logger.info(f"Fusion result: {label} ({final_score:.2f}) for {media_type}")
             
@@ -61,7 +66,13 @@ class FusionEngine:
                     weighted_scores.append(score * normalized_weights[modality])
             
             final_score = sum(weighted_scores) if weighted_scores else 0.5
-            label = "manipulated" if final_score > 0.5 else "authentic"
+            
+            if final_score > 0.6:
+                label = "manipulated"
+            elif final_score >= 0.4:
+                label = "suspicious"
+            else:
+                label = "authentic"
             
             return final_score, label
         
