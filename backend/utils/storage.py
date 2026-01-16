@@ -8,7 +8,10 @@ from utils.logger import logger
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 AWS_S3_BUCKET = os.getenv("AWS_S3_BUCKET", "deepfake-media")
-
+AWS_S3_BASE_URL = os.getenv(
+    "AWS_S3_BASE_URL",
+    f"https://{AWS_S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com"
+)
 _client = None
 
 def get_client():
@@ -71,7 +74,7 @@ def upload_to_storage(data: bytes, object_name: str, content_type: str = "applic
             ContentType=content_type
         )
 
-        url = f"s3://{AWS_S3_BUCKET}/{object_name}"
+        url = f"{AWS_S3_BASE_URL}/{object_name}"
         
         logger.info(f"Uploaded {object_name} to storage")
         
