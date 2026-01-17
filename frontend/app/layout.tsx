@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
 
-
 import { Providers } from "@/app/providers";
 import clsx from "clsx";
 import { dmsans } from "@/components/ui/fonts";
-
 
 export const metadata: Metadata = {
   title: "Deepfake Detection and Media Authenticity Analyzer",
@@ -22,13 +20,10 @@ export default function RootLayout({
       <body
         className={clsx(
           dmsans.className,
-          "min-h-dvh bg-background text-foreground antialiased"
+          "min-h-dvh bg-background text-foreground antialiased",
         )}
       >
-        <Providers>
-          
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

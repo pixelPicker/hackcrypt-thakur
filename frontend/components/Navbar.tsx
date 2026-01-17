@@ -24,7 +24,7 @@ export function Navbar({ className }: { className?: string }) {
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
         "fixed w-full top-0 z-50 px-4 border-b border-white/5 bg-background/60 backdrop-blur-xl supports-backdrop-filter:bg-background/60",
-        className
+        className,
       )}
     >
       <div className="mx-auto flex w-full md:max-w-7xl items-center justify-between md:p-5 py-3 px-1">
@@ -86,7 +86,9 @@ export function Navbar({ className }: { className?: string }) {
           {!session?.user && (
             <div className="ml-2 pl-3 border-l border-border/60">
               <Link href="/login">
-                <Button className="h-8 px-3 bg-white text-black hover:bg-white/90">Login</Button>
+                <Button className="h-8 px-3 bg-white text-black hover:bg-white/90">
+                  Login
+                </Button>
               </Link>
             </div>
           )}
