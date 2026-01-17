@@ -5,20 +5,18 @@ class FusionEngine:
     def __init__(self):
         self.weights = {
             "image": {
-                "vision": 0.85,      # Primary signal - facial/visual artifacts
-                "metadata": 0.15     # EXIF tampering, compression artifacts
+                "vision": 1.0,       # 100% - Primary signal for images
             },
             "audio": {
-                "audio": 0.92,       # Primary signal - voice synthesis detection
-                "metadata": 0.08     # Audio metadata forensics
+                "audio": 1.0,        # 100% - Primary signal for audio
             },
             "video": {
                 # Video is multi-modal - balance all signals
-                "lipsync": 0.30,     # ⭐ STRONGEST - Voice-lip mismatch is hard to fake
-                "vision": 0.25,      # Face swap artifacts, unnatural movements
-                "audio": 0.20,       # Voice deepfake in video audio track
-                "temporal": 0.20,    # Frame inconsistencies, continuity errors
-                "metadata": 0.05     # Metadata forensics (weakest standalone signal)
+                "lipsync": 0.30,     # ⭐ Voice-lip mismatch
+                "vision": 0.25,      # Face swap artifacts
+                "audio": 0.20,       # Voice deepfake in video
+                "temporal": 0.20,    # Frame inconsistencies
+                "metadata": 0.05     # Metadata forensics (only if available)
             }
         }
     
@@ -29,14 +27,18 @@ class FusionEngine:
             weighted_scores = []
             total_weight = 0
             
+            # Only include scores that exist and are not None
             for modality, score in modality_scores.items():
                 if modality in weights and score is not None:
                     weighted_scores.append(score * weights[modality])
                     total_weight += weights[modality]
             
+            # If no valid scores, return neutral
             if total_weight == 0:
+                logger.warning(f"No valid detector scores for {media_type}")
                 final_score = 0.5
             else:
+                # Normalize by actual total weight (handles missing detectors)
                 final_score = sum(weighted_scores) / total_weight
             
             if final_score > 0.6:
@@ -47,6 +49,7 @@ class FusionEngine:
                 label = "authentic"
             
             logger.info(f"Fusion result: {label} ({final_score:.2f}) for {media_type}")
+            logger.info(f"Active detectors: {list(modality_scores.keys())}, Total weight: {total_weight:.2f}")
             
             return final_score, label
         

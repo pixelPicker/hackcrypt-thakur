@@ -54,7 +54,9 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
         logger.info(f"Processing media for job {job_id}")
         
         processor = MediaProcessor()
+        logger.info(f"Content-Type: {content_type}")
         media_data = processor.process(media_url, content_type)
+        logger.info(f"Detected media type: {media_data['type']}")
         
         modality_scores = {}
         explainability_data = {}
@@ -105,11 +107,12 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
             modality_scores["lipsync"] = float(ls_result["score"])
             explainability_data["lipsync_details"] = ls_result.get("inconsistencies", {})
 
-        # --- 4. FUSION & METADATA ---
-        modality_scores["metadata"] = media_data.get("metadata_score", 0.5)
-        explainability_data["metadata_flags"] = media_data.get("metadata_flags", [])
+        # --- 4. FUSION (No default scores) ---
+        if media_data.get("metadata_score") is not None and media_data.get("metadata_score") != 0.5:
+            modality_scores["metadata"] = media_data.get("metadata_score")
+            explainability_data["metadata_flags"] = media_data.get("metadata_flags", [])
         
-        # The FusionEngine now receives "lipsync" in the dict
+        # The FusionEngine now receives only active detectors
         fusion_engine = FusionEngine()
         final_score, label = fusion_engine.fuse(modality_scores, media_data["type"])
         
@@ -125,6 +128,16 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
         
         processing_time = int((time.time() - start_time) * 1000)
         
+        # Clean modality_scores - remove None values and 0.5 defaults
+        # Only keep scores from detectors that actually ran successfully
+        cleaned_scores = {
+            k: v for k, v in modality_scores.items() 
+            if v is not None and v != 0.5
+        }
+        
+        logger.info(f"Final scores for {media_data['type']}: {cleaned_scores}")
+        logger.info(f"Final aggregated score: {final_score:.4f} ({label})")
+        
         # Path resolution for public URL
         public_media_url = media_url
         if media_url.startswith("file://"):
@@ -138,7 +151,7 @@ def process_media_sync(job_id: str, media_url: str, content_type: str):
             "label": label,
             "confidence_score": round(final_score, 4),
             "risk_level": risk_level,
-            "modality_scores": modality_scores,
+            "modality_scores": cleaned_scores,
             "explainability": enhanced_explainability,
             "media_type": media_data["type"],
             "media_url": public_media_url,

@@ -34,3 +34,4 @@ soundfile
 scipy
 audioread
 pydub
+demucs
