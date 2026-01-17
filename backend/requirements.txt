@@ -1,37 +1,63 @@
+# Core FastAPI & Web Framework
 fastapi
-uvicorn[standard]
-celery
-redis
-psycopg2-binary
-sqlalchemy
-alembic
+uvicorn
 python-multipart
 pydantic
 pydantic-settings
 
-boto3
+# Security & Session Management
+itsdangerous
 
-torch>=2.1.0
-torchvision>=0.16.0
-torchaudio>=2.1.0
+# Background Tasks & Job Queue
+celery
+redis
+
+# Database & ORM
+psycopg2-binary
+sqlalchemy
+alembic
+
+# Cloud Storage
+boto3
+botocore
+
+# Deep Learning Frameworks
+torch
+torchvision
+torchaudio
+transformers
 timm
+
+# Computer Vision
 opencv-contrib-python
 mediapipe
-librosa
-transformers
-grad-cam
-captum
+pillow
 
-ffmpeg-python
-moviepy
-hachoir
-numpy
-scikit-learn
-loguru
-Pillow
-huggingface-hub
+# Audio Processing
+librosa
 soundfile
-scipy
 audioread
 pydub
 demucs
+
+# Video Processing
+ffmpeg-python
+moviepy
+
+# Metadata & File Processing
+hachoir
+
+# Scientific Computing
+numpy
+scipy
+scikit-learn
+
+# Explainability & Interpretability
+grad-cam
+captum
+
+# Utilities
+loguru
+huggingface-hub
+python-dotenv
+requests
