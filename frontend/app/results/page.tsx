@@ -279,17 +279,14 @@ function ResultsContent() {
             (result.explainability.anomalies_timeline as TimelinePoint[])
               .length > 0 ? (
               <TimelineAnomalies
-                timeline={
+                timeline={(
                   result.explainability.anomalies_timeline as TimelinePoint[]
-                }
+                ).map((val) => ({
+                  score: Number(val.score.toFixed(2)),
+                  t: Number(val.t.toFixed(2)),
+                }))}
               />
             ) : null}
-
-            {/* <TabsContent value="raw">
-                    <pre className="max-h-[360px] overflow-auto rounded-xl border border-border/60 bg-card/40 p-4 text-xs text-muted-foreground">
-                      {JSON.stringify(result, null, 2)}
-                    </pre>
-                  </TabsContent> */}
 
             <div className="space-y-2">
               <div className="text-sm font-medium">Detection Breakdown</div>
