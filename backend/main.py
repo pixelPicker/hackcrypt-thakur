@@ -1,72 +1,109 @@
-from fastapi import FastAPI, Request, Response, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, File, UploadFile, Request, Response, HTTPException
 from itsdangerous import URLSafeSerializer
-# ... other imports
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from api import routes
+from utils.logger import logger
+import uvicorn
 
-# Constants
-GUEST_MAX = 3
-USER_MAX = 15
-COOKIE_NAME = "credits_token"
+app = FastAPI(
+    title="Deepfake Detection API",
+    description="Advanced AI/ML system for detecting deepfakes in images, videos, and audio",
+    version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+app.include_router(routes.router)
+
 SECRET_KEY = "super-secret-key-change-this"
 serializer = URLSafeSerializer(SECRET_KEY)
 
-# Helper: Check if user is signed in (Replace this with your actual auth logic)
-def is_signed_in(request: Request):
-    # Example: check if an 'auth_token' cookie exists
-    return request.cookies.get("auth_token") is not None
+MAX_CREDITS = 3
+COOKIE_NAME = "credits_token"
+
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Mount static files for local storage fallback
+os.makedirs("temp_storage", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="temp_storage"), name="uploads")
+
+def create_token(credits: int):
+    return serializer.dumps({"credits": credits})
+
+def read_token(token: str):
+    try:
+        return serializer.loads(token)
+    except Exception:
+        return None
+
+@app.get("/")
+async def root():
+    return {"message": "Deepfake Detection API", "status": "online"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 @app.get("/me")
-def get_me(request: Request):
+def get_me(request: Request, response: Response, mode: str = "auto"):
     token = request.cookies.get(COOKIE_NAME)
-    signed_in = is_signed_in(request)
-    default_credits = USER_MAX if signed_in else GUEST_MAX
 
+    if mode == "user":
+        return {
+            "authenticated": True,
+            "credits_left": None, 
+        }
+
+    # No cookie → create fresh anonymous session
     if not token:
-        return {"authenticated": signed_in, "credits_left": default_credits}
-
-    data = read_token(token)
-    return {
-        "authenticated": signed_in,
-        "credits_left": data.get("credits", default_credits) if data else default_credits
-    }
-
-@app.post("/analyze")
-async def analyze_endpoint(request: Request):
-    token = request.cookies.get(COOKIE_NAME)
-    signed_in = is_signed_in(request)
-    
-    # 1. Determine starting credits based on status
-    if not token:
-        current_credits = USER_MAX if signed_in else GUEST_MAX
-    else:
-        data = read_token(token)
-        if not data:
-            current_credits = USER_MAX if signed_in else GUEST_MAX
-        else:
-            current_credits = data.get("credits", 0)
-
-    # 2. Check if they have enough credits
-    if current_credits <= 0:
-        raise HTTPException(
-            status_code=429, 
-            detail="Limit reached. Please sign up for more credits."
+        response.set_cookie(
+            key=COOKIE_NAME,
+            value=create_token(MAX_CREDITS),
+            httponly=True,
+            samesite="lax",
+            secure=False  # True in prod
         )
 
-    # 3. Deduct credit
-    new_credits = current_credits - 1
-    
-    # 4. Prepare the response
-    content = {"result": "analysis done", "credits_left": new_credits}
-    response = JSONResponse(content=content)
-    
-    # 5. Set the updated cookie
-    response.set_cookie(
-        key=COOKIE_NAME,
-        value=create_token(new_credits),
-        httponly=True,
-        max_age=60 * 60 * 24,
-        samesite="lax",
-        secure=False, # Set to True in Production with HTTPS
-    )
-    
-    return response
+        return {
+            "authenticated": False,
+            "credits_left": MAX_CREDITS
+        }
+
+    data = read_token(token)
+
+    # Corrupted / tampered cookie → reset safely
+    if not data or "credits" not in data:
+        response.set_cookie(
+            key=COOKIE_NAME,
+            value=create_token(MAX_CREDITS),
+            httponly=True,
+            samesite="lax",
+            secure=False
+        )
+        logger.info("Resetting corrupted credits cookie")
+
+        return {
+            "authenticated": False,
+            "credits_left": MAX_CREDITS
+        }
+
+    # Valid cookie → just return state
+    return {
+        "authenticated": False,
+        "credits_left": data["credits"]
+    }
+
+if __name__ == "__main__":
+    logger.info("Starting Deepfake Detection API")
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

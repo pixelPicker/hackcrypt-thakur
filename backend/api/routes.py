@@ -1,5 +1,6 @@
+from itsdangerous import URLSafeSerializer
 import os
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, UploadFile, HTTPException, Request, Response
 from services.lipsync_detector import LipSyncDetector
 from api.schemas import AnalysisResult, JobResponse
 from utils.storage import upload_to_storage
@@ -14,38 +15,98 @@ import uuid
 import time
 import traceback
 
+
+SECRET_KEY = "super-secret-key-change-this"
+serializer = URLSafeSerializer(SECRET_KEY)
+
+MAX_CREDITS = 3
+COOKIE_NAME = "credits_token"
+
+
+def create_token(credits: int):
+    return serializer.dumps({"credits": credits})
+
+
+def read_token(token: str):
+    try:
+        return serializer.loads(token)
+    except Exception:
+        return None
+
+def credits(request: Request, response: Response):
+    token = request.cookies.get(COOKIE_NAME)
+
+    # First-time visitor
+    if not token:
+        credits = MAX_CREDITS - 1
+        response.set_cookie(
+            key=COOKIE_NAME,
+            value=create_token(credits),
+            httponly=True,
+            samesite="lax",
+            secure=False  # set True in production (HTTPS)
+        )
+        return {"result": "analysis done", "credits_left": credits}
+
+    data = read_token(token)
+    if not data:
+        raise HTTPException(status_code=400, detail="Invalid session")
+
+    credits = data.get("credits", 0)
+
+    if credits <= 0:
+        raise HTTPException(
+            status_code=429,
+            detail="Free limit reached. Please sign up."
+        )
+
+    credits -= 1
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=create_token(credits),
+        httponly=True,
+        samesite="lax",
+        secure=False
+    )
+
+    return {"result": "analysis done", "credits_left": credits}
+
 router = APIRouter()
 
 job_results_cache = {}
 
 @router.post("/analyze", response_model=AnalysisResult)
-async def analyze_media(file: UploadFile = File(...)):
-    try:
-        content = await file.read()
-        
-        job_id = str(uuid.uuid4())
-        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
-        storage_path = f"{job_id}.{file_extension}"
-        
-        media_url = upload_to_storage(content, storage_path, file.content_type)
-        
-        try:
-            result = process_media_sync(job_id, media_url, file.content_type)
-            job_results_cache[job_id] = result
-            return AnalysisResult(**result)
-        except Exception as e:
-            logger.error(f"Processing error: {str(e)}")
-            logger.error(traceback.format_exc())
-            job_results_cache[job_id] = {
-                "status": "error",
-                "error": str(e)
-            }
-            # Re-raise to be caught by outer exception handler or return error structure
-            raise e
-    
-    except Exception as e:
-        logger.error(f"Error creating analysis job: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+async def analyze_media(request: Request, response: Response, mode: str = "auto", file: UploadFile = File(...)):
+  if mode != "user":
+    tokenRes = credits(request, response)
+    logger.info(f"Credits after consumption: {tokenRes['credits_left']}")
+  
+  try:
+      content = await file.read()
+      
+      job_id = str(uuid.uuid4())
+      file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
+      storage_path = f"{job_id}.{file_extension}"
+      
+      media_url = upload_to_storage(content, storage_path, file.content_type)
+      
+      try:
+          result = process_media_sync(job_id, media_url, file.content_type)
+          job_results_cache[job_id] = result
+          return AnalysisResult(**result)
+      except Exception as e:
+          logger.error(f"Processing error: {str(e)}")
+          logger.error(traceback.format_exc())
+          job_results_cache[job_id] = {
+              "status": "error",
+              "error": str(e)
+          }
+          # Re-raise to be caught by outer exception handler or return error structure
+          raise e
+  
+  except Exception as e:
+      logger.error(f"Error creating analysis job: {str(e)}")
+      raise HTTPException(status_code=500, detail=str(e))
 
 def process_media_sync(job_id: str, media_url: str, content_type: str):
     start_time = time.time()

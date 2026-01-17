@@ -131,24 +131,30 @@ export function normalizeAnalysisResult(raw: any): AnalysisResult {
 
 export async function analyzeMedia(
   file: File,
-  onProgress?: (progress: number) => void
+  mode: "user" | "guest",
+  onProgress?: (progress: number) => void,
 ): Promise<AnalysisResult> {
   const form = new FormData();
   form.append("file", file);
 
-  const res = await http.post("/analyze", form, {
-    headers: {
-      "Content-Type": "multipart/form-data",
+  const res = await http.post(
+    `/analyze${mode === "user" ? "?mode=user" : ""}`,
+    form,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      withCredentials: true,
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total,
+          );
+          onProgress(percentCompleted);
+        }
+      },
     },
-    onUploadProgress: (progressEvent) => {
-      if (onProgress && progressEvent.total) {
-        const percentCompleted = Math.round(
-          (progressEvent.loaded * 100) / progressEvent.total
-        );
-        onProgress(percentCompleted);
-      }
-    },
-  });
+  );
 
   return normalizeAnalysisResult(res.data);
 }

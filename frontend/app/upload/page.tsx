@@ -21,6 +21,8 @@ import { Navbar } from "@/components/Navbar";
 import { PageTransition } from "@/components/PageTransition";
 import { cn } from "@/lib/utils";
 import { useSessions } from "@/context/SessionContext";
+import Link from "next/link";
+import { getSession } from "next-auth/react";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -29,9 +31,8 @@ export default function UploadPage() {
   const [showPreview, setShowPreview] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [analysisProgress, setAnalysisProgress] = React.useState(0);
-
   const { session, refresh } = useSessions();
-
+  console.log({ session });
   // Clean up Object URLs to prevent memory leaks
   React.useEffect(() => {
     return () => {
@@ -41,8 +42,10 @@ export default function UploadPage() {
 
   const mutation = useMutation({
     mutationFn: async (f: File) => {
+      const actualSession = await getSession();
+
       setUploadProgress(0);
-      return analyzeMedia(f, (progress) => {
+      return analyzeMedia(f, actualSession ? "user" : "guest", (progress) => {
         setUploadProgress(progress);
       });
     },
@@ -57,6 +60,15 @@ export default function UploadPage() {
       if (file?.name) params.set("name", file.name);
       if (file?.type) params.set("type", file.type);
       router.push(`/results?${params.toString()}`);
+    },
+    onError: (error: any) => {
+      if (error.status === 429) {
+        // TODO: ADD TOAST
+        console.log("Rate limit exceeded");
+      }
+    },
+    onSettled: () => {
+      refresh();
     },
   });
 
@@ -83,30 +95,16 @@ export default function UploadPage() {
     });
   }, []);
 
-  // Logical check for button state
   const canAnalyze =
-    Boolean(file) && !mutation.isPending && (session?.credits_left ?? 0) > 0;
+    Boolean(file) &&
+    !mutation.isPending &&
+    (session?.credits_left === null ||
+      (typeof session?.credits_left === "number" && session.credits_left > 0));
 
   // Function to handle credit deduction and start analysis
   const handleStartAnalysis = async () => {
     if (!file) return;
-
-    try {
-      const res = await fetch("http://localhost:8000/analyze", {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        alert("Free limit reached. Please sign up.");
-        return;
-      }
-
-      await refresh(); // Updates navbar credits
-      mutation.mutate(file);
-    } catch (error) {
-      console.error("Failed to consume credit", error);
-    }
+    mutation.mutate(file);
   };
 
   // 🔥 THE ACTUAL RETURN THAT WAS MISSING
@@ -217,7 +215,7 @@ export default function UploadPage() {
                     onClick={handleStartAnalysis}
                     disabled={!canAnalyze}
                     className={cn(
-                      "relative group w-full max-w-xs h-14 rounded-full text-lg font-semibold overflow-hidden transition-all duration-300",
+                      "relative group w-full max-w-xs h-14 rounded-full text-lg font-semibold overflow-hidden disabled:cursor-not-allowed transition-all duration-300",
                       canAnalyze
                         ? "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]"
                         : "bg-muted text-muted-foreground cursor-not-allowed",
@@ -229,20 +227,25 @@ export default function UploadPage() {
                     </span>
                   </Button>
 
-                  {session && (
+                  {/* {session && (
                     <div className="text-sm text-muted-foreground mt-1">
                       Credits left:{" "}
                       <span className="font-semibold text-white">
                         {session.credits_left}
                       </span>
                     </div>
-                  )}
+                  )} */}
 
-                  {session?.credits_left === 0 && (
-                    <div className="text-xs text-red-400">
-                      Free limit reached. Please sign up to continue.
-                    </div>
-                  )}
+                  {session &&
+                    session.credits_left &&
+                    session.credits_left < 1 && (
+                      <Link
+                        href={"/login"}
+                        className="text-sm text-red-400 underline underline-offset-3"
+                      >
+                        Free limit reached. Please sign up to continue.
+                      </Link>
+                    )}
 
                   <AnimatePresence>
                     {mutation.isPending && (
