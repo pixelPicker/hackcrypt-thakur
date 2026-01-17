@@ -237,7 +237,7 @@ export default function UploadPage() {
                   )} */}
 
                   {session &&
-                    session.credits_left &&
+                    session.credits_left !== null &&
                     session.credits_left < 1 && (
                       <Link
                         href={"/login"}
