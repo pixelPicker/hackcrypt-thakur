@@ -257,9 +257,23 @@ export default function UploadPage() {
                       >
                         <div className="flex justify-between text-sm font-medium text-blue-200/90 px-1">
                           <span className="flex items-center gap-2">
-                            {uploadProgress < 100
-                              ? "Uploading..."
-                              : "Analyzing Media..."}
+                            {uploadProgress < 100 ? (
+                              <>
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                                </span>
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500"></span>
+                                </span>
+                                Analyzing Media...
+                              </>
+                            )}
                           </span>
                           <span>
                             {uploadProgress < 100
@@ -268,17 +282,59 @@ export default function UploadPage() {
                             %
                           </span>
                         </div>
-                        {/* Progress Bar UI would go here */}
+
+                        <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/5 border border-white/10 p-px">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${
+                                uploadProgress < 100
+                                  ? uploadProgress
+                                  : analysisProgress
+                              }%`,
+                            }}
+                            transition={{ ease: "easeOut", duration: 0.2 }}
+                            className={cn(
+                              "h-full rounded-full bg-linear-to-r shadow-[0_0_10px_rgba(59,130,246,0.5)]",
+                              uploadProgress < 100
+                                ? "from-blue-600 via-indigo-500 to-blue-600"
+                                : "from-purple-600 via-fuchsia-500 to-purple-600 animate-pulse",
+                            )}
+                          />
+                        </div>
+
+                        <p className="text-center text-xs text-muted-foreground/80 animate-pulse">
+                          {uploadProgress < 100
+                            ? "Sending to secure cloud..."
+                            : "Running multi-modal deepfake detection..."}
+                        </p>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
-                  {mutation.isError && (
-                    <div className="text-red-400 text-sm">
-                      {mutation.error?.message ||
-                        "Analysis Failed. Is the backend running?"}
-                    </div>
-                  )}
+                  <AnimatePresence>
+                    {mutation.isError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 w-full"
+                      >
+                        <div className="flex items-start gap-3">
+                          <FileWarning className="mt-0.5 h-5 w-5 text-red-400" />
+                          <div>
+                            <div className="text-sm font-semibold text-red-200">
+                              Analysis Failed
+                            </div>
+                            <div className="mt-1 text-xs text-red-200/60 leading-relaxed">
+                              {mutation.error?.message ||
+                                "Could not connect to the backend server. Please ensure the analysis engine is running on port 8000."}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </CardContent>
             </Card>
