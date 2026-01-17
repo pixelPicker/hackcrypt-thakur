@@ -15,7 +15,7 @@ import {
   Mic,
 } from "lucide-react";
 
-import type { AnalysisResult } from "@/app/api";
+import type { AnalysisResult, TimelinePoint } from "@/app/api";
 import { getResult } from "@/app/api";
 import { ConfidenceScore } from "@/components/ConfidenceScore";
 import { HeatmapOverlay } from "@/components/HeatmapOverlay";
@@ -60,7 +60,7 @@ function ResultsContent() {
     queryKey: ["result", id],
     queryFn: () => getResult(id),
     enabled: shouldFetch,
-    initialData: !shouldFetch ? last ?? undefined : undefined,
+    initialData: !shouldFetch ? (last ?? undefined) : undefined,
   });
 
   const result = data;
@@ -215,7 +215,7 @@ function ResultsContent() {
                 {result.modality_scores && result.modality_scores.vision && (
                   <div className="border-2 border-neutral-700/50 bg-linear-to-tr from-neutral-800/50 to-neutral-700/50 rounded-xl space-y-1 p-4 pt-6 flex flex-col">
                     <p className="text-4xl text-right font-medium flex-1">
-                      {result.modality_scores.vision.toFixed(1)}%
+                      {(result.modality_scores.vision * 100).toFixed(1)}%
                     </p>
                     <div>
                       <h3 className="text-xl">Visual Frame Analysis</h3>
@@ -229,7 +229,7 @@ function ResultsContent() {
                 {result.modality_scores && (
                   <div className="border-2 border-neutral-700/50 bg-linear-to-tr from-neutral-800/50 to-neutral-700/50 rounded-xl space-y-4 p-4 pt-6 flex flex-col">
                     <p className="text-4xl text-right font-medium flex-1">
-                      {result.modality_scores.audio?.toFixed(1) ?? 0}%
+                      {((result.modality_scores.audio ?? 0) * 100).toFixed(1)}%
                     </p>
                     <div>
                       <h3 className="text-xl">Audio Deepfake Detection</h3>
@@ -243,7 +243,10 @@ function ResultsContent() {
                 {result.modality_scores && (
                   <div className="border-2 border-neutral-700/50 bg-linear-to-tr from-neutral-800/50 to-neutral-700/50 rounded-xl space-y-4 p-4 pt-6 flex flex-col">
                     <p className="text-4xl text-right font-medium flex-1">
-                      {result.modality_scores.temporal?.toFixed(1) ?? 0}%
+                      {((result.modality_scores.temporal ?? 0) * 100).toFixed(
+                        1,
+                      )}
+                      %
                     </p>
                     <div>
                       <h3 className="text-xl">Temporal Consistency</h3>
@@ -257,7 +260,8 @@ function ResultsContent() {
                 {result.modality_scores && (
                   <div className="border-2 border-neutral-700/50 bg-linear-to-tr from-neutral-800/50 to-neutral-700/50 rounded-xl space-y-4 p-4 pt-6 flex flex-col">
                     <p className="text-4xl text-right font-medium flex-1">
-                      {result.modality_scores.lipsync?.toFixed(1) ?? 0}%
+                      {((result.modality_scores.lipsync ?? 0) * 100).toFixed(1)}
+                      %
                     </p>
                     <div>
                       <h3 className="text-xl">Lip-sync Verification</h3>
@@ -270,8 +274,15 @@ function ResultsContent() {
               </div>
             </div>
 
-            {result?.timeline && result.timeline.length > 0 ? (
-              <TimelineAnomalies timeline={result.timeline} />
+            {result.explainability &&
+            result.explainability.anomalies_timeline &&
+            (result.explainability.anomalies_timeline as TimelinePoint[])
+              .length > 0 ? (
+              <TimelineAnomalies
+                timeline={
+                  result.explainability.anomalies_timeline as TimelinePoint[]
+                }
+              />
             ) : null}
 
             {/* <TabsContent value="raw">

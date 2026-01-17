@@ -170,5 +170,4 @@ class MediaProcessor:
         
         if not metadata.get("camera_info"):
             flags.append("missing_camera_info")
-        
         return flags

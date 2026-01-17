@@ -4,23 +4,24 @@ import librosa
 import numpy as np
 import requests
 import tempfile
-import shutil
 from urllib.parse import urlparse
 from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor
 import torch.nn.functional as F
 import warnings
-from transformers import logging as transformers_logging
 
-# Suppress expected warnings about model weight initialization
-transformers_logging.set_verbosity_error()
+# Suppress warnings
+warnings.filterwarnings("ignore")
 
 # Set longer timeout for HuggingFace downloads
 os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '60'
 
-# =========================================================
-# 1. THE CORE LOGIC (Singleton - Loads Model Once)
-# =========================================================
 class AudioDeepfakeDetector:
+    """
+    Advanced Audio Deepfake Detector using:
+    1. MelodyMachine fine-tuned model
+    2. Spectral analysis heuristics
+    3. Optional Demucs vocal isolation (if available)
+    """
     def __init__(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"🔊 Audio Detector initializing on: {self.device.upper()}")
@@ -29,142 +30,180 @@ class AudioDeepfakeDetector:
         current_script_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.normpath(os.path.join(current_script_dir, ".."))
         self.model_cache_dir = os.path.join(project_root, "models", "pretrained")
-        
-        # Create directory if it doesn't exist
         os.makedirs(self.model_cache_dir, exist_ok=True)
 
+        # Initialize Demucs (optional, for vocal isolation)
+        self.demucs_model = None
         try:
-            # Use a lightweight pre-trained model from HuggingFace
-            model_name = "facebook/wav2vec2-large-xlsr-53"
-            print(f"📂 Loading Audio Model from HuggingFace: {model_name}")
-            print(f"💾 Cache directory: {self.model_cache_dir}")
+            # Set torch hub cache to our local directory
+            demucs_cache = os.path.join(self.model_cache_dir, "demucs")
+            os.makedirs(demucs_cache, exist_ok=True)
             
-            # Download and cache model to local project directory
+            # Set environment variable for torch hub
+            original_torch_home = os.environ.get('TORCH_HOME', None)
+            os.environ['TORCH_HOME'] = demucs_cache
+            
+            from demucs.pretrained import get_model as demucs_get_model
+            self.demucs_model = demucs_get_model('htdemucs')
+            self.demucs_model.to(self.device)
+            self.demucs_model.eval()
+            
+            # Restore original TORCH_HOME if it was set
+            if original_torch_home:
+                os.environ['TORCH_HOME'] = original_torch_home
+            else:
+                os.environ.pop('TORCH_HOME', None)
+                
+            print(f"✅ Demucs loaded for vocal isolation (cached in {demucs_cache})")
+        except Exception as e:
+            print(f"⚠️ Demucs not available: {e}. Proceeding without vocal isolation.")
+
+        # Load main deepfake detection model
+        try:
+            model_name = "MelodyMachine/Deepfake-audio-detection"
+            print(f"📂 Loading Audio Model: {model_name}")
+            
             self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
                 model_name,
                 cache_dir=self.model_cache_dir
             )
             self.model = Wav2Vec2ForSequenceClassification.from_pretrained(
                 model_name,
-                num_labels=2,  # Binary classification: Real vs Fake
-                ignore_mismatched_sizes=True,  # Allow adapting the model
+                num_labels=2,
                 cache_dir=self.model_cache_dir
             ).to(self.device)
             self.model.eval()
-            print("✅ Audio Model Loaded Successfully from HuggingFace")
+            print("✅ MelodyMachine Model Loaded Successfully")
         except Exception as e:
-            print(f"❌ Error loading audio model: {e}")
-            print("⚠️ Running in fallback mode - will use heuristic analysis only")
+            print(f"❌ Error loading model: {e}")
             self.model = None
             self.feature_extractor = None
 
     def analyze_audio(self, file_path: str) -> dict:
+        """Analyze audio file for deepfake detection."""
         try:
-            # Load 10 seconds of audio
+            # Load audio
             y, sr = librosa.load(file_path, sr=16000, duration=10)
             
-            # --- 🛡️ LAYER 1: SPECTRAL FLUX (Transition Analysis) ---
-            # AI often has "perfect" transitions between phonemes. Humans are messy.
-            # Spectral flux measures how quickly the power spectrum changes.
+            # Optional: Use Demucs to isolate vocals
+            if self.demucs_model is not None:
+                try:
+                    y = self._isolate_vocals(y, sr)
+                    print("✓ Vocals isolated using Demucs")
+                except Exception as e:
+                    print(f"⚠️ Vocal isolation failed: {e}. Using original audio.")
+            
+            # LAYER 1: Spectral Flux Analysis
             onset_env = librosa.onset.onset_strength(y=y, sr=sr)
             flux_mean = np.mean(onset_env)
-            # High flux variance = Natural speech. Low/Constant flux = AI generation.
             flux_risk = 1.0 if flux_mean < 1.2 else 0.0
 
-            # --- 🛡️ LAYER 2: CHROMA CENS (Tonal Constancy) ---
-            # AI voices often have a very "locked" pitch texture. 
-            # We measure the energy in 12 different pitch classes.
+            # LAYER 2: Tonal Consistency Analysis
             chroma = librosa.feature.chroma_cens(y=y, sr=sr)
             chroma_std = np.std(chroma)
-            # AI is often "too stable" (Low std dev).
             tonal_risk = 1.0 if chroma_std < 0.25 else 0.0
 
-            # --- 🛡️ LAYER 3: THE AI MODEL (Wav2Vec2) ---
+            # LAYER 3: Deep Learning Model
             if self.model is not None and self.feature_extractor is not None:
                 inputs = self.feature_extractor(y, sampling_rate=16000, return_tensors="pt", padding=True)
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 
                 with torch.no_grad():
                     logits = self.model(**inputs).logits
-                    ai_fake_score = F.softmax(logits, dim=-1)[0][1].item()
+                    probs = F.softmax(logits, dim=-1)
+                    ai_fake_score = probs[0][1].item()  # Class 1 = Fake
 
-                # --- 🚀 THE "VETO" LOGIC ---
-                # If BOTH Layer 1 and Layer 2 say it's fake, we override a weak AI score.
-                # This is much more accurate than a simple average.
-                if flux_risk + tonal_risk >= 1.5:
-                    # The physical signals are suspicious
-                    final_score = max(ai_fake_score, 0.85) 
-                else:
-                    # Trust the AI model but dampen it if it's unsure
-                    final_score = ai_fake_score
+                # Combine model + heuristics (70% model, 30% heuristics)
+                heuristic_score = (flux_risk + tonal_risk) / 2.0
+                final_score = (ai_fake_score * 0.7) + (heuristic_score * 0.3)
+                
             else:
-                # Fallback mode: Use only heuristic analysis
-                print("⚠️ AI model not available, using heuristic analysis only")
-                # Average the heuristic scores
+                # Fallback: heuristics only
                 final_score = (flux_risk + tonal_risk) / 2.0
                 ai_fake_score = final_score
 
             return {
                 "label": "FAKE" if final_score > 0.5 else "REAL",
                 "fake_prob": float(final_score),
-                "confidence_percent": round(float(final_score if final_score > 0.5 else (1-final_score)) * 100, 2),
+                "confidence_percent": round(float(max(final_score, 1-final_score)) * 100, 2),
                 "analysis_metrics": {
                     "rhythm_fluidity": "Natural" if flux_mean > 1.2 else "Stiff/AI",
                     "tonal_consistency": "High (Suspect)" if chroma_std < 0.25 else "Normal",
                     "raw_ai_score": round(ai_fake_score, 3),
-                    "mode": "AI+Heuristic" if self.model else "Heuristic Only"
+                    "vocal_isolation": "Yes" if self.demucs_model else "No",
+                    "mode": "MelodyMachine+Demucs+Heuristic" if self.demucs_model else "MelodyMachine+Heuristic"
                 }
             }
 
         except Exception as e:
             return {"error": str(e), "fake_prob": 0.5}
 
-# Initialize ONE global instance
+    def _isolate_vocals(self, audio, sr):
+        """Use Demucs to isolate vocal track."""
+        import torch.nn.functional as F_torch
+        
+        # Prepare audio for Demucs (stereo required)
+        if len(audio.shape) == 1:
+            audio_stereo = np.stack([audio, audio])
+        else:
+            audio_stereo = audio
+        
+        # Convert to tensor
+        audio_tensor = torch.from_numpy(audio_stereo).float().unsqueeze(0).to(self.device)
+        
+        # Run Demucs
+        with torch.no_grad():
+            sources = self.demucs_model(audio_tensor)
+        
+        # Extract vocals (index 3 for htdemucs)
+        vocals = sources[0, 3].cpu().numpy()
+        
+        # Convert back to mono
+        if len(vocals.shape) > 1:
+            vocals = np.mean(vocals, axis=0)
+        
+        return vocals
+
+# Initialize global instance
 _global_detector = AudioDeepfakeDetector()
 
 
-# =========================================================
-# 2. THE SERVICE ADAPTER (Connects to your main.py)
-# =========================================================
 class AudioDetector:
+    """Service adapter for integration with main application."""
+    
     def detect(self, media_data: dict) -> dict:
         """
-        Adapter method called by main.py.
-        Handles both LOCAL PATHS and REMOTE URLS automatically.
+        Detect deepfakes in audio files.
+        Handles local paths and URLs automatically.
         """
         input_path = media_data.get("file_path") or media_data.get("local_path") or media_data.get("url")
+        
+        # Handle file:// prefix
         if input_path and input_path.startswith("file://"):
             input_path = input_path.replace("file://", "")
-            
             if os.name == 'nt' and input_path.startswith("/") and not input_path.startswith("//"):
-                 input_path = input_path.lstrip("/")
+                input_path = input_path.lstrip("/")
         
         temp_file_path = None
-        final_path_to_analyze = None
 
         try:
-            # 2. INTELLIGENT PATH RESOLUTION
             if not input_path:
                 return {"score": 0.5, "inconsistencies": {"error": "No file path provided"}}
 
-            # Check if it is a URL (http/https)
+            # Handle URLs
             if self._is_url(input_path):
-                print(f"🌐 Remote URL detected. Downloading: {input_path}")
                 temp_file_path = self._download_file(input_path)
-                final_path_to_analyze = temp_file_path
-            else:
-                # Assume it is a local path
-                if os.path.exists(input_path):
-                    final_path_to_analyze = input_path
-                else:
-                    return {"score": 0.5, "inconsistencies": {"error": f"Local file not found: {input_path}"}}
-
-            # 3. RUN ANALYSIS
-            result = _global_detector.analyze_audio(final_path_to_analyze)
+                input_path = temp_file_path
             
-            # 4. FORMAT OUTPUT
+            # Verify file exists
+            if not os.path.exists(input_path):
+                return {"score": 0.5, "inconsistencies": {"error": f"File not found: {input_path}"}}
+
+            # Run analysis
+            result = _global_detector.analyze_audio(input_path)
             fake_score = result.get("fake_prob", 0.5)
             
+            # Format output
             inconsistencies = {}
             if fake_score > 0.55:
                 inconsistencies = {
@@ -174,7 +213,7 @@ class AudioDetector:
                     "confidence": result.get("confidence_percent"),
                     "details": {
                         "fake_probability": round(fake_score, 4),
-                        "real_probability": result.get("real_prob", 0.0)
+                        "real_probability": round(1 - fake_score, 4)
                     }
                 }
             else:
@@ -184,26 +223,24 @@ class AudioDetector:
                 }
 
             return {
-                "score": fake_score,              
+                "score": fake_score,
                 "inconsistencies": inconsistencies
             }
 
         except Exception as e:
-            print(f"AudioDetector Wrapper Error: {e}")
+            print(f"AudioDetector Error: {e}")
             return {"score": 0.5, "inconsistencies": {"error": str(e)}}
         
         finally:
-            # 5. CLEANUP TEMP DOWNLOADS
-            # Only delete if WE created it (i.e., it was a download)
+            # Cleanup temp files
             if temp_file_path and os.path.exists(temp_file_path):
                 try:
                     os.remove(temp_file_path)
-                    print(f"🧹 Cleaned up temp download: {temp_file_path}")
                 except:
                     pass
 
-    # --- HELPER METHODS ---
     def _is_url(self, path: str) -> bool:
+        """Check if path is a URL."""
         try:
             result = urlparse(path)
             return all([result.scheme, result.netloc])
@@ -211,14 +248,11 @@ class AudioDetector:
             return False
 
     def _download_file(self, url: str) -> str:
-        """Downloads a file from a URL to a temporary local path."""
+        """Download file from URL to temp location."""
         try:
-            # Create a temp file
-            # delete=False because we need to close it before librosa reads it (Windows lock issue)
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
                 local_filename = tmp.name
             
-            # Download stream
             with requests.get(url, stream=True) as r:
                 r.raise_for_status()
                 with open(local_filename, 'wb') as f:
@@ -227,45 +261,4 @@ class AudioDetector:
             
             return local_filename
         except Exception as e:
-            raise RuntimeError(f"Failed to download audio from URL: {e}")
-
-if __name__ == "__main__":
-    import os
-
-    # 1. Initialize the detector
-    detector = AudioDetector()
-    
-    # 2. Define your local test file path
-    # Make sure this file actually exists in your services folder!
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    test_file = os.path.join(current_dir, "test1.mp3") # or "test_video.mp4"
-    
-    print(f"🧪 Starting Local Test...")
-    print(f"📂 Target File: {test_file}")
-
-    if not os.path.exists(test_file):
-        print(f"❌ ERROR: Test file not found at {test_file}")
-        print("👉 Tip: Put a .wav or .mp4 file in this folder and rename it to 'test_audio.wav'")
-    else:
-        # 3. Run the detection
-        # The wrapper handles both video and audio files because of librosa
-        try:
-            results = detector.detect({"local_path": test_file})
-            
-            print("\n" + "="*50)
-            print("🎧 AUDIO DETECTION RESULTS")
-            print("="*50)
-            print(f"🔹 Final Fake Score: {results['score']}")
-            
-            # Print the explainability metrics if available
-            incon = results.get('inconsistencies', {})
-            if incon.get('detected'):
-                print(f"🚩 STATUS: {incon.get('severity')} Risk - {incon.get('description')}")
-            else:
-                print(f"✅ STATUS: {incon.get('status')}")
-                
-            print(f"🔹 Confidence: {incon.get('confidence')}%")
-            print("="*50)
-            
-        except Exception as e:
-            print(f"❌ Test failed with error: {e}")
+            raise RuntimeError(f"Failed to download audio: {e}")

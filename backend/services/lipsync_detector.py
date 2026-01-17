@@ -181,6 +181,3 @@ class LipSyncDetector:
 #     if os.path.exists(f):
 #         detector = LipSyncDetector()
 #         print(detector.detect({"file_path": f}))
-# #     if os.path.exists(f):
-# #         detector = LipSyncDetector()
-# #         print(detector.detect({"file_path": f}))
