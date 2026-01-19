@@ -61,3 +61,4 @@ loguru
 huggingface-hub
 python-dotenv
 requests
+itsdangerous
